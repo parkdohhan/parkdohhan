@@ -25,7 +25,7 @@ export const MAP_CONFIG = {
   WORLD_WIDTH: 4000, // Total map width in pixels
   VIEWPORT_PADDING: 200, // Camera padding from edges
   PLAYER_SPEED: 4, // Base movement speed
-  PLAYER_RUN_MULTIPLIER: 2.2, // Shift key speed boost
+  PLAYER_RUN_MULTIPLIER: 4.5, // Shift key speed boost (더 빨리)
   LERP_FACTOR: 0.08, // Camera smoothing (0-1, lower = smoother)
   TRIGGER_RADIUS: 80, // Portal activation distance
   LOOP_THRESHOLD: 50, // Distance from edge to trigger loop

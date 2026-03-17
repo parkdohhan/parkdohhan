@@ -26,10 +26,10 @@ export function FilterBar({
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => onMediumChange(null)}
-          className={`text-[10px] tracking-[0.2em] uppercase px-3 py-1.5 border transition-colors ${
+          className={`text-[10px] font-semibold tracking-[0.2em] uppercase px-3 py-1.5 border-2 transition-colors ${
             activeMedium === null
               ? 'border-stone-500 text-stone-300'
-              : 'border-stone-800 text-stone-600 hover:text-stone-400 hover:border-stone-700'
+              : 'border-stone-700 text-stone-500 hover:text-stone-400 hover:border-stone-600'
           }`}
         >
           All
@@ -38,10 +38,10 @@ export function FilterBar({
           <button
             key={key}
             onClick={() => onMediumChange(key)}
-            className={`text-[10px] tracking-[0.2em] uppercase px-3 py-1.5 border transition-colors ${
+            className={`text-[10px] font-semibold tracking-[0.2em] uppercase px-3 py-1.5 border-2 transition-colors ${
               activeMedium === key
                 ? 'border-stone-500 text-stone-300'
-                : 'border-stone-800 text-stone-600 hover:text-stone-400 hover:border-stone-700'
+                : 'border-stone-700 text-stone-500 hover:text-stone-400 hover:border-stone-600'
             }`}
           >
             {label}
@@ -53,10 +53,10 @@ export function FilterBar({
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => onTagChange(null)}
-          className={`text-[9px] tracking-wider uppercase px-2 py-1 border transition-colors ${
+          className={`text-[9px] font-medium tracking-wider uppercase px-2 py-1 border-2 transition-colors ${
             activeTag === null
-              ? 'border-stone-600 text-stone-400'
-              : 'border-stone-800/50 text-stone-600 hover:text-stone-500'
+              ? 'border-stone-500 text-stone-400'
+              : 'border-stone-700 text-stone-500 hover:text-stone-400'
           }`}
         >
           all tags
@@ -65,10 +65,10 @@ export function FilterBar({
           <button
             key={tag}
             onClick={() => onTagChange(tag)}
-            className={`text-[9px] tracking-wider uppercase px-2 py-1 border transition-colors ${
+            className={`text-[9px] font-medium tracking-wider uppercase px-2 py-1 border-2 transition-colors ${
               activeTag === tag
-                ? 'border-stone-600 text-stone-400'
-                : 'border-stone-800/50 text-stone-600 hover:text-stone-500'
+                ? 'border-stone-500 text-stone-400'
+                : 'border-stone-700 text-stone-500 hover:text-stone-400'
             }`}
           >
             {tag}

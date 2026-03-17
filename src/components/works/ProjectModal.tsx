@@ -48,7 +48,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
 
           {/* Modal */}
           <motion.div
-            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-stone-900 border border-stone-800"
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-stone-900 border-2 border-stone-600"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
@@ -67,10 +67,10 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
             <div className="p-8 md:p-12">
               {/* Header */}
               <div className="mb-8">
-                <span className="text-[10px] tracking-[0.3em] uppercase text-stone-600">
+                <span className="text-[10px] font-semibold tracking-[0.3em] uppercase text-stone-500">
                   {mediumLabels[project.medium]} · {project.year}
                 </span>
-                <h2 className="text-2xl md:text-3xl text-stone-100 mt-2">
+                <h2 className="text-2xl md:text-3xl font-semibold text-stone-100 mt-2">
                   {project.title}
                 </h2>
               </div>
@@ -113,7 +113,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
               })()}
 
               {/* Description */}
-              <p className="text-stone-400 leading-relaxed mb-8">
+              <p className="text-stone-400 font-medium leading-relaxed mb-8">
                 {project.description}
               </p>
 
@@ -123,7 +123,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                   {project.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[10px] tracking-wider uppercase px-2 py-0.5 border border-stone-700 text-stone-500"
+                      className="text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 border-2 border-stone-600 text-stone-400"
                     >
                       {tag}
                     </span>
@@ -133,14 +133,14 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
 
               {/* Links */}
               {project.links.length > 0 && (
-                <div className="flex flex-wrap gap-4 pt-6 border-t border-stone-800">
+                <div className="flex flex-wrap gap-4 pt-6 border-t-2 border-stone-700">
                   {project.links.map((link) => (
                     <a
                       key={link.label}
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-stone-400 hover:text-stone-200 transition-colors px-4 py-2 border border-stone-700 hover:border-stone-600"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-stone-400 hover:text-stone-200 transition-colors px-4 py-2 border-2 border-stone-600 hover:border-stone-500"
                     >
                       {link.label}
                       <ExternalLink className="w-4 h-4" />

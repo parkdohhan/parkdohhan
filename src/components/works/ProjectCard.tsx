@@ -19,14 +19,14 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
       transition={{ delay: index * 0.1, duration: 0.5 }}
       onClick={onClick}
     >
-      <div className="border border-stone-800 hover:border-stone-700 transition-colors p-6 md:p-8">
+      <div className="border-2 border-stone-700 hover:border-stone-600 transition-colors p-6 md:p-8">
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <div>
-            <span className="text-[10px] tracking-[0.3em] uppercase text-stone-600">
+            <span className="text-[10px] font-semibold tracking-[0.3em] uppercase text-stone-500">
               {mediumLabels[project.medium]}
             </span>
-            <h3 className="text-lg md:text-xl text-stone-200 mt-1 group-hover:text-stone-100 transition-colors">
+            <h3 className="text-lg md:text-xl font-semibold text-stone-200 mt-1 group-hover:text-stone-100 transition-colors">
               {project.title}
             </h3>
           </div>
@@ -45,7 +45,7 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
           {project.tags.map((tag) => (
             <span
               key={tag}
-              className="text-[10px] tracking-wider uppercase px-2 py-0.5 border border-stone-800 text-stone-600"
+              className="text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 border-2 border-stone-600 text-stone-500"
             >
               {tag}
             </span>
@@ -54,7 +54,7 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
 
         {/* Links */}
         {project.links.length > 0 && (
-          <div className="flex gap-4 pt-4 border-t border-stone-800/50">
+          <div className="flex gap-4 pt-4 border-t-2 border-stone-700">
             {project.links.map((link) => (
               <a
                 key={link.label}

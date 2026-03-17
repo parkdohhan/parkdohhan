@@ -67,7 +67,7 @@ function WheelchairNode({ label, loopCount }: { label?: string; loopCount: numbe
       <div className="relative">
         {/* Wheel */}
         <motion.div
-          className="w-16 h-16 border border-stone-500 rounded-full"
+          className="w-16 h-16 border-2 border-stone-500 rounded-full"
           style={{ opacity }}
           animate={{
             rotate: loopCount > 0 ? 360 : 0,
@@ -78,7 +78,7 @@ function WheelchairNode({ label, loopCount }: { label?: string; loopCount: numbe
             ease: 'linear',
           }}
         >
-          <div className="absolute inset-2 border border-stone-600/30 rounded-full" />
+          <div className="absolute inset-2 border-2 border-stone-600/50 rounded-full" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-px h-full bg-stone-500/30" />
           </div>
@@ -121,8 +121,8 @@ function PortalNode({ label, isActive }: { label?: string; isActive: boolean }) 
       >
         {/* Outer frame */}
         <motion.div
-          className="absolute inset-0 border rounded-t-full"
-          style={{
+          className="absolute inset-0 border-2 rounded-t-full"
+            style={{
             borderColor: isActive ? 'rgb(168, 162, 158)' : 'rgb(87, 83, 78)',
           }}
           animate={{
@@ -183,7 +183,7 @@ function MonolithNode({ text, loopCount }: { text?: string; loopCount: number })
     <div className="relative h-72 flex flex-col items-center justify-end pb-8">
       {/* Monolith stone */}
       <div className="relative">
-        <div className="w-48 h-56 bg-stone-900/80 border border-stone-700/50 flex items-center justify-center p-4">
+        <div className="w-48 h-56 bg-stone-900/80 border-2 border-stone-600 flex items-center justify-center p-4">
           {/* Etched text */}
           {text && (
             <p
@@ -222,7 +222,7 @@ function ReturnNode({ label, loopCount }: { label?: string; loopCount: number })
       <div className="relative">
         {/* Circle with reaching lines */}
         <motion.div
-          className="w-16 h-16 border border-stone-500 rounded-full relative"
+          className="w-16 h-16 border-2 border-stone-500 rounded-full relative"
           style={{ opacity: intensity }}
           animate={{
             scale: [1, 1.02, 1],

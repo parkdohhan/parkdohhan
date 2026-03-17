@@ -103,7 +103,7 @@ export function BackgroundLayers({
         {strataLines.map((line) => (
           <motion.div
             key={line.id}
-            className="absolute h-px bg-slate-600/80"
+            className="absolute h-0.5 bg-slate-500/90"
             style={{
               top: `${line.y}%`,
               left: '-10%',
@@ -147,7 +147,7 @@ export function BackgroundLayers({
       <div className="absolute inset-0 pointer-events-none bg-gradient-radial from-transparent via-transparent to-[#0d1321]/60" />
 
       {/* Ground line */}
-      <div className="absolute bottom-24 left-0 right-0 h-px bg-slate-600/50" />
+      <div className="absolute bottom-24 left-0 right-0 h-0.5 bg-slate-500/70" />
       <div className="absolute bottom-24 left-0 right-0 w-full h-8 bg-gradient-to-t from-[#141b2d]/60 to-transparent" />
     </div>
   );

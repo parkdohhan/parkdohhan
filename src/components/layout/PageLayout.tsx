@@ -28,7 +28,7 @@ export function PageLayout({
       />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-stone-950/80 backdrop-blur-sm border-b border-stone-900">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-stone-950/80 backdrop-blur-sm border-b-2 border-stone-700">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link
             href={backHref}
@@ -38,7 +38,7 @@ export function PageLayout({
             {backLabel}
           </Link>
 
-          <h1 className="text-xs tracking-[0.3em] uppercase text-stone-600">
+          <h1 className="text-xs font-semibold tracking-[0.3em] uppercase text-stone-500">
             {title}
           </h1>
         </div>
@@ -55,8 +55,8 @@ export function PageLayout({
       </motion.main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 py-4 bg-stone-950/80 backdrop-blur-sm border-t border-stone-900">
-        <div className="max-w-6xl mx-auto px-6 flex justify-between items-center text-[10px] text-stone-600">
+      <footer className="fixed bottom-0 left-0 right-0 py-4 bg-stone-950/80 backdrop-blur-sm border-t-2 border-stone-700">
+        <div className="max-w-6xl mx-auto px-6 flex justify-between items-center text-[10px] font-medium text-stone-500">
           <span>© 2024</span>
           <nav className="flex gap-6">
             <Link href="/works" className="hover:text-stone-400 transition-colors">

@@ -32,10 +32,10 @@ function WorksContent() {
       <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <div className="mb-12 pt-8">
-          <h2 className="text-2xl md:text-3xl text-stone-200 mb-4">
+          <h2 className="text-2xl md:text-3xl font-semibold text-stone-200 mb-4">
             Selected Works
           </h2>
-          <p className="text-stone-500 max-w-xl">
+          <p className="text-stone-500 font-medium max-w-xl">
             Projects across interactive experiences, video, and writing.
             Each explores themes of recursion, memory, and structural pathology.
           </p>

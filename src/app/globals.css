@@ -37,8 +37,8 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #44403c;
-  border-radius: 3px;
+  background: #57534e;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -51,9 +51,9 @@ body {
   color: #fafaf9;
 }
 
-/* Focus outline */
+/* Focus outline - 더 선명하게 */
 :focus-visible {
-  outline: 1px solid #78716c;
+  outline: 2px solid #78716c;
   outline-offset: 2px;
 }
 

@@ -16,11 +16,11 @@ export default function AboutPage() {
           transition={{ duration: 0.6 }}
         >
           {/* Avatar placeholder */}
-          <div className="w-24 h-24 rounded-full border border-stone-800 bg-stone-900 mx-auto mb-8 flex items-center justify-center">
-            <span className="text-stone-600 text-2xl">◯</span>
+          <div className="w-24 h-24 rounded-full border-2 border-stone-600 bg-stone-900 mx-auto mb-8 flex items-center justify-center">
+            <span className="text-stone-500 text-2xl font-medium">◯</span>
           </div>
 
-          <h2 className="text-2xl text-stone-200 text-center mb-6">
+          <h2 className="text-2xl font-semibold text-stone-200 text-center mb-6">
             Dohhan Park / 박도한
           </h2>
 
@@ -42,12 +42,12 @@ export default function AboutPage() {
 
         {/* Contact */}
         <motion.div
-          className="border-t border-stone-800 py-12"
+          className="border-t-2 border-stone-700 py-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
         >
-          <h3 className="text-xs tracking-[0.3em] uppercase text-stone-600 text-center mb-8">
+          <h3 className="text-xs font-semibold tracking-[0.3em] uppercase text-stone-500 text-center mb-8">
             Contact
           </h3>
 
@@ -82,12 +82,12 @@ export default function AboutPage() {
 
         {/* Tools/Tech */}
         <motion.div
-          className="border-t border-stone-800 py-12"
+          className="border-t-2 border-stone-700 py-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.6 }}
         >
-          <h3 className="text-xs tracking-[0.3em] uppercase text-stone-600 text-center mb-8">
+          <h3 className="text-xs font-semibold tracking-[0.3em] uppercase text-stone-500 text-center mb-8">
             Tools & Methods
           </h3>
 
@@ -104,7 +104,7 @@ export default function AboutPage() {
             ].map((tool) => (
               <span
                 key={tool}
-                className="text-[10px] tracking-wider uppercase px-3 py-1.5 border border-stone-800 text-stone-600"
+                className="text-[10px] font-medium tracking-wider uppercase px-3 py-1.5 border-2 border-stone-600 text-stone-500"
               >
                 {tool}
               </span>
@@ -114,12 +114,12 @@ export default function AboutPage() {
 
         {/* Colophon */}
         <motion.div
-          className="border-t border-stone-800 py-12 pb-24"
+          className="border-t-2 border-stone-700 py-12 pb-24"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.6 }}
         >
-          <h3 className="text-xs tracking-[0.3em] uppercase text-stone-600 text-center mb-8">
+          <h3 className="text-xs font-semibold tracking-[0.3em] uppercase text-stone-500 text-center mb-8">
             Colophon
           </h3>
 

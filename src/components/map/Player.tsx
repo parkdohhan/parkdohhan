@@ -41,7 +41,7 @@ export function Player({ x, cameraX, isMoving, facingRight }: PlayerProps) {
           
           {/* Subtle glow ring */}
           <motion.div
-            className="absolute -inset-1 border border-stone-400/30 rounded-full"
+            className="absolute -inset-1 border-2 border-stone-400/50 rounded-full"
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.1, 0.3],

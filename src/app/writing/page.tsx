@@ -13,7 +13,7 @@ export default function WritingPage() {
       <div className="max-w-3xl mx-auto px-6">
         {/* Header */}
         <div className="mb-16 pt-8 text-center">
-          <h2 className="text-2xl md:text-3xl text-stone-200 mb-4">Writing</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold text-stone-200 mb-4">Writing</h2>
           <p className="text-stone-500 max-w-lg mx-auto">
             Fiction and essays that circle back on themselves.
           </p>
@@ -24,7 +24,7 @@ export default function WritingPage() {
           {writingProjects.map((work, index) => (
             <motion.article
               key={work.id}
-              className="group border-l border-stone-800 pl-6 hover:border-stone-600 transition-colors"
+              className="group border-l-2 border-stone-700 pl-6 hover:border-stone-500 transition-colors"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.15, duration: 0.5 }}
@@ -32,7 +32,7 @@ export default function WritingPage() {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-3">
                   <BookOpen className="w-4 h-4 text-stone-600" />
-                  <h3 className="text-lg text-stone-200 group-hover:text-stone-100 transition-colors">
+                  <h3 className="text-lg font-semibold text-stone-200 group-hover:text-stone-100 transition-colors">
                     {work.title}
                   </h3>
                 </div>
@@ -83,7 +83,7 @@ export default function WritingPage() {
         </div>
 
         {/* Quote */}
-        <div className="border-t border-stone-800 pt-12 pb-24">
+        <div className="border-t-2 border-stone-700 pt-12 pb-24">
           <blockquote className="text-center">
             <p className="text-stone-500 italic text-sm leading-relaxed max-w-md mx-auto">
               &ldquo;Pathology is not an event but a repeating structure of choice.&rdquo;

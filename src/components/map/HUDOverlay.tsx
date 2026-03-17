@@ -40,13 +40,13 @@ export function HUDOverlay({
         <div className="flex gap-3">
           <Link
             href="/works"
-            className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-stone-500 hover:text-stone-300 transition-colors px-3 py-1.5 border border-stone-700/50 hover:border-stone-600/50"
+            className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-stone-500 hover:text-stone-300 transition-colors px-3 py-1.5 border-2 border-stone-600 hover:border-stone-500"
           >
             Enter Works
           </Link>
           <button
             onClick={onResetScar}
-            className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-stone-600 hover:text-stone-400 transition-colors px-3 py-1.5 border border-stone-800/50 hover:border-stone-700/50"
+            className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-stone-500 hover:text-stone-400 transition-colors px-3 py-1.5 border-2 border-stone-700 hover:border-stone-600"
           >
             Reset Scar
           </button>
@@ -56,7 +56,7 @@ export function HUDOverlay({
         <div className="flex items-center gap-4">
           {loopCount > 0 && (
             <motion.div
-              className="text-[10px] md:text-xs tracking-[0.3em] text-stone-600 tabular-nums"
+              className="text-[10px] md:text-xs font-semibold tracking-[0.3em] text-stone-500 tabular-nums"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
             >
@@ -90,24 +90,24 @@ export function HUDOverlay({
               exit={{ y: -20, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-sm tracking-[0.3em] uppercase text-stone-400 mb-8">
+              <h2 className="text-sm font-semibold tracking-[0.3em] uppercase text-stone-400 mb-8">
                 Controls
               </h2>
               
               <div className="space-y-4 text-stone-500 text-xs tracking-wide">
-                <div className="flex justify-between border-b border-stone-800 pb-2">
+                <div className="flex justify-between border-b-2 border-stone-700 pb-2">
                   <span>Move</span>
                   <span className="text-stone-400">← → or A D</span>
                 </div>
-                <div className="flex justify-between border-b border-stone-800 pb-2">
+                <div className="flex justify-between border-b-2 border-stone-700 pb-2">
                   <span>Run</span>
                   <span className="text-stone-400">Hold Shift</span>
                 </div>
-                <div className="flex justify-between border-b border-stone-800 pb-2">
+                <div className="flex justify-between border-b-2 border-stone-700 pb-2">
                   <span>Enter Portal</span>
                   <span className="text-stone-400">↑ or Enter</span>
                 </div>
-                <div className="flex justify-between border-b border-stone-800 pb-2">
+                <div className="flex justify-between border-b-2 border-stone-700 pb-2">
                   <span>Close Help</span>
                   <span className="text-stone-400">Esc</span>
                 </div>

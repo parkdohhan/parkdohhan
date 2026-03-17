@@ -24,7 +24,7 @@ export function MobileControls({
       {/* Left/Right controls */}
       <div className="flex gap-2">
         <button
-          className="w-14 h-14 rounded-full border border-stone-600/50 bg-stone-900/80 flex items-center justify-center active:bg-stone-800 touch-none"
+          className="w-14 h-14 rounded-full border-2 border-stone-600 bg-stone-900/80 flex items-center justify-center active:bg-stone-800 touch-none"
           onTouchStart={onLeftStart}
           onTouchEnd={onLeftEnd}
           onTouchCancel={onLeftEnd}
@@ -33,7 +33,7 @@ export function MobileControls({
           <ChevronLeft className="w-6 h-6 text-stone-400" />
         </button>
         <button
-          className="w-14 h-14 rounded-full border border-stone-600/50 bg-stone-900/80 flex items-center justify-center active:bg-stone-800 touch-none"
+          className="w-14 h-14 rounded-full border-2 border-stone-600 bg-stone-900/80 flex items-center justify-center active:bg-stone-800 touch-none"
           onTouchStart={onRightStart}
           onTouchEnd={onRightEnd}
           onTouchCancel={onRightEnd}
@@ -46,7 +46,7 @@ export function MobileControls({
       {/* Action button */}
       {showAction && (
         <button
-          className="w-14 h-14 rounded-full border border-stone-400/50 bg-stone-900/80 flex items-center justify-center active:bg-stone-800 touch-none animate-pulse"
+          className="w-14 h-14 rounded-full border-2 border-stone-400 bg-stone-900/80 flex items-center justify-center active:bg-stone-800 touch-none animate-pulse"
           onTouchStart={onAction}
           aria-label="Enter portal"
         >
