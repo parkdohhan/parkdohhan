@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink } from 'lucide-react';
 import { Project, mediumLabels } from '@/data/projects';
@@ -74,12 +75,42 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                 </h2>
               </div>
 
-              {/* Media placeholder */}
-              <div className="aspect-video bg-stone-800 mb-8 flex items-center justify-center">
-                <span className="text-stone-600 text-sm">
-                  [media placeholder]
-                </span>
-              </div>
+              {/* Media */}
+              {(() => {
+                const pdfLink = project.links.find((l) => l.url.toLowerCase().endsWith('.pdf'));
+                if (pdfLink) {
+                  return (
+                    <div className="mb-8 overflow-hidden relative bg-stone-800" style={{ aspectRatio: '210/297' }}>
+                      <iframe
+                        src={pdfLink.url}
+                        title={project.title}
+                        className="absolute inset-0 w-full h-full border-0"
+                        style={{ pointerEvents: 'auto' }}
+                      />
+                    </div>
+                  );
+                }
+                if (project.media) {
+                  return (
+                    <div className="aspect-video bg-stone-800 mb-8 overflow-hidden relative">
+                      <Image
+                        src={project.media}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 672px) 100vw, 672px"
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <div className="aspect-video bg-stone-800 mb-8 overflow-hidden relative">
+                    <span className="absolute inset-0 flex items-center justify-center text-stone-600 text-sm">
+                      [media placeholder]
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* Description */}
               <p className="text-stone-400 leading-relaxed mb-8">
@@ -87,16 +118,18 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
               </p>
 
               {/* Tags */}
-              <div className="flex flex-wrap gap-2 mb-8">
-                {project.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[10px] tracking-wider uppercase px-2 py-0.5 border border-stone-700 text-stone-500"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {project.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {project.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[10px] tracking-wider uppercase px-2 py-0.5 border border-stone-700 text-stone-500"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Links */}
               {project.links.length > 0 && (

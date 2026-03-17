@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { Mail, Github, ExternalLink } from 'lucide-react';
+import { Mail, Github, Instagram } from 'lucide-react';
 
 export default function AboutPage() {
   return (
@@ -21,7 +21,7 @@ export default function AboutPage() {
           </div>
 
           <h2 className="text-2xl text-stone-200 text-center mb-6">
-            [Your Name]
+            Dohhan Park / 박도한
           </h2>
 
           <div className="space-y-4 text-stone-400 text-sm leading-relaxed text-center">
@@ -53,14 +53,14 @@ export default function AboutPage() {
 
           <div className="flex justify-center gap-8">
             <a
-              href="mailto:hello@example.com"
+              href="mailto:dohhan92947@gmail.com"
               className="flex items-center gap-2 text-stone-500 hover:text-stone-300 transition-colors text-sm"
             >
               <Mail className="w-4 h-4" />
               Email
             </a>
             <a
-              href="https://github.com"
+              href="https://github.com/dohhan"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-stone-500 hover:text-stone-300 transition-colors text-sm"
@@ -69,11 +69,13 @@ export default function AboutPage() {
               GitHub
             </a>
             <a
-              href="#"
+              href="https://instagram.com/dohhan_"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-2 text-stone-500 hover:text-stone-300 transition-colors text-sm"
             >
-              <ExternalLink className="w-4 h-4" />
-              CV
+              <Instagram className="w-4 h-4" />
+              Instagram
             </a>
           </div>
         </motion.div>

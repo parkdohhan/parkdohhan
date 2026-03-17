@@ -40,6 +40,7 @@ export function useGameLoop({
 
   const rafRef = useRef<number | null>(null);
   const lastEnterRef = useRef(false);
+  const loopTriggerGuardRef = useRef(false); // 한 번 넘어갈 때 onLoopTrigger 한 번만 호출
   const viewportWidthRef = useRef(
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
@@ -76,21 +77,40 @@ export function useGameLoop({
         }
 
         // Update player position
+        const prevPlayerX = playerX;
         playerX += dx * speed;
 
         // ============================================
         // CUSTOMIZATION POINT: Loop Detection
-        // Modify this section to change loop behavior
+        // 한 번 넘어갈 때 onLoopTrigger 한 번만 호출 (Strict Mode/이중 루프 대응)
         // ============================================
-        // Check for loop trigger (reaching end of map)
-        if (playerX > WORLD_WIDTH - LOOP_THRESHOLD) {
-          // Wrap around to start
+        const rightEdge = WORLD_WIDTH - LOOP_THRESHOLD;
+        const crossedRight = prevPlayerX <= rightEdge && playerX > rightEdge;
+        const crossedLeft = prevPlayerX >= LOOP_THRESHOLD && playerX < LOOP_THRESHOLD;
+
+        if (crossedRight) {
           playerX = LOOP_THRESHOLD + 50;
-          onLoopTrigger();
-        } else if (playerX < LOOP_THRESHOLD) {
-          // Wrap around to end (going backwards)
+          if (!loopTriggerGuardRef.current) {
+            loopTriggerGuardRef.current = true;
+            onLoopTrigger();
+          }
+        } else if (crossedLeft) {
           playerX = WORLD_WIDTH - LOOP_THRESHOLD - 50;
-          onLoopTrigger();
+          if (!loopTriggerGuardRef.current) {
+            loopTriggerGuardRef.current = true;
+            onLoopTrigger();
+          }
+        } else if (playerX > rightEdge) {
+          playerX = LOOP_THRESHOLD + 50;
+        } else if (playerX < LOOP_THRESHOLD) {
+          playerX = WORLD_WIDTH - LOOP_THRESHOLD - 50;
+        }
+
+        // 보정된 위치 기준으로 안전 구역이면 다음 루프를 위해 가드 해제
+        const safeZoneMin = LOOP_THRESHOLD + 200;
+        const safeZoneMax = rightEdge - 200;
+        if (playerX >= safeZoneMin && playerX <= safeZoneMax) {
+          loopTriggerGuardRef.current = false;
         }
 
         // Clamp player position

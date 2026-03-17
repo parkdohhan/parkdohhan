@@ -67,14 +67,14 @@ export function GameMap() {
   // Don't render until loop count is loaded from localStorage
   if (!isLoaded) {
     return (
-      <div className="fixed inset-0 bg-stone-950 flex items-center justify-center">
-        <div className="w-2 h-2 bg-stone-600 rounded-full animate-pulse" />
+      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: '#0d1321' }}>
+        <div className="w-2 h-2 bg-slate-500 rounded-full animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-stone-950 overflow-hidden select-none">
+    <div className="fixed inset-0 overflow-hidden select-none" style={{ backgroundColor: '#0d1321' }}>
       {/* Background */}
       <BackgroundLayers
         cameraX={gameState.cameraX}

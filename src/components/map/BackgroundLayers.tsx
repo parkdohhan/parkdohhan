@@ -45,10 +45,29 @@ export function BackgroundLayers({
     }));
   }, [lineCount, loopCount]);
 
+  // Sun moves right with each loop (screen %): start ~6%, +2% per loop, cap at ~70%
+  const sunLeftPercent = Math.min(6 + loopCount * 2, 70);
+
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Base gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950" />
+      {/* Base gradient - dusky navy */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to bottom, #0d1321 0%, #141b2d 50%, #0d1321 100%)',
+        }}
+      />
+
+      {/* Sun - soft glow on the left, moves right each loop */}
+      <div
+        className="absolute top-[15%] w-[120px] h-[120px] pointer-events-none"
+        style={{
+          left: `${sunLeftPercent}%`,
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, rgba(255, 220, 180, 0.25) 0%, rgba(255, 200, 150, 0.12) 25%, rgba(255, 180, 120, 0.05) 50%, transparent 70%)',
+          borderRadius: '50%',
+        }}
+      />
 
       {/* Parallax layers */}
       {PARALLAX_LAYERS.map((layer) => {
@@ -62,11 +81,11 @@ export function BackgroundLayers({
               opacity: layer.opacity * (0.5 + loopCount * 0.02),
             }}
           >
-            {/* Dot pattern */}
+            {/* Dot pattern - blue-tinted for navy bg */}
             <div
               className="absolute inset-0"
               style={{
-                backgroundImage: `radial-gradient(circle, rgba(168, 162, 158, ${0.03 + loopCount * 0.005}) 1px, transparent 1px)`,
+                backgroundImage: `radial-gradient(circle, rgba(148, 163, 184, ${0.04 + loopCount * 0.005}) 1px, transparent 1px)`,
                 backgroundSize: `${40 + layer.speed * 20}px ${40 + layer.speed * 20}px`,
               }}
             />
@@ -84,7 +103,7 @@ export function BackgroundLayers({
         {strataLines.map((line) => (
           <motion.div
             key={line.id}
-            className="absolute h-px bg-stone-600"
+            className="absolute h-px bg-slate-600/80"
             style={{
               top: `${line.y}%`,
               left: '-10%',
@@ -116,7 +135,7 @@ export function BackgroundLayers({
           }}
         >
           <div
-            className="text-[200px] font-thin text-stone-500 select-none"
+            className="text-[200px] font-thin text-slate-500/90 select-none"
             style={{ opacity: ghostTextOpacity }}
           >
             {loopCount}
@@ -125,11 +144,11 @@ export function BackgroundLayers({
       )}
 
       {/* Vignette */}
-      <div className="absolute inset-0 pointer-events-none bg-gradient-radial from-transparent via-transparent to-stone-950/50" />
+      <div className="absolute inset-0 pointer-events-none bg-gradient-radial from-transparent via-transparent to-[#0d1321]/60" />
 
       {/* Ground line */}
-      <div className="absolute bottom-24 left-0 right-0 h-px bg-stone-700/50" />
-      <div className="absolute bottom-24 left-0 right-0 h-8 bg-gradient-to-t from-stone-900/50 to-transparent" />
+      <div className="absolute bottom-24 left-0 right-0 h-px bg-slate-600/50" />
+      <div className="absolute bottom-24 left-0 right-0 w-full h-8 bg-gradient-to-t from-[#141b2d]/60 to-transparent" />
     </div>
   );
 }

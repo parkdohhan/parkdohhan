@@ -64,12 +64,12 @@ export const MAP_NODES: MapNode[] = [
     route: '/works?filter=interactive',
   },
   {
-    id: 'portal-film',
+    id: 'portal-video',
     type: 'portal',
     x: 1450,
     width: 100,
-    label: 'Film',
-    route: '/film',
+    label: 'Video',
+    route: '/video',
   },
   {
     id: 'portal-writing',

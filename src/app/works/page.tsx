@@ -36,7 +36,7 @@ function WorksContent() {
             Selected Works
           </h2>
           <p className="text-stone-500 max-w-xl">
-            Projects across interactive experiences, film, and writing.
+            Projects across interactive experiences, video, and writing.
             Each explores themes of recursion, memory, and structural pathology.
           </p>
         </div>

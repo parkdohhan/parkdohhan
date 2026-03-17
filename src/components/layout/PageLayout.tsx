@@ -62,8 +62,8 @@ export function PageLayout({
             <Link href="/works" className="hover:text-stone-400 transition-colors">
               Works
             </Link>
-            <Link href="/film" className="hover:text-stone-400 transition-colors">
-              Film
+            <Link href="/video" className="hover:text-stone-400 transition-colors">
+              Video
             </Link>
             <Link href="/writing" className="hover:text-stone-400 transition-colors">
               Writing
