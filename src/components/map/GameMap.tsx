@@ -6,12 +6,14 @@ import { MAP_NODES } from '@/data/mapConfig';
 import { useLoopCount } from '@/hooks/useLoopCount';
 import { useKeyboardInput } from '@/hooks/useKeyboardInput';
 import { useTouchInput } from '@/hooks/useTouchInput';
+import { usePointerSteer } from '@/hooks/usePointerSteer';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import { BackgroundLayers } from './BackgroundLayers';
 import { Player } from './Player';
 import { MapNodeComponent } from './MapNodeComponent';
 import { MobileControls } from './MobileControls';
+import { PointerGuide } from './PointerGuide';
 import { HUDOverlay } from './HUDOverlay';
 import { LoopTransition } from './LoopTransition';
 
@@ -20,6 +22,7 @@ export function GameMap() {
   const { loopCount, incrementLoop, resetLoop, isLoaded } = useLoopCount();
   const { keys, consumeEscape } = useKeyboardInput();
   const { touchState, handlers } = useTouchInput();
+  const pointerSteer = usePointerSteer();
   const reducedMotion = useReducedMotion();
   
   const [showHelp, setShowHelp] = useState(false);
@@ -27,8 +30,8 @@ export function GameMap() {
 
   // Combine keyboard and touch inputs
   const combinedKeys = {
-    left: keys.left || touchState.left,
-    right: keys.right || touchState.right,
+    left: keys.left || touchState.left || pointerSteer.left,
+    right: keys.right || touchState.right || pointerSteer.right,
     up: keys.up || touchState.action,
     enter: keys.enter || touchState.action,
     shift: keys.shift,
@@ -103,6 +106,12 @@ export function GameMap() {
 
       {/* Loop transition effect */}
       <LoopTransition trigger={loopTrigger} />
+
+      <PointerGuide
+        pointerLeft={pointerSteer.left}
+        pointerRight={pointerSteer.right}
+        emphasize={loopCount === 0}
+      />
 
       {/* HUD */}
       <HUDOverlay

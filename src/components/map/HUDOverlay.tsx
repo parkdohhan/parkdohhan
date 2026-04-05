@@ -95,9 +95,15 @@ export function HUDOverlay({
               </h2>
               
               <div className="space-y-4 text-stone-500 text-xs tracking-wide">
-                <div className="flex justify-between border-b-2 border-stone-700 pb-2">
+                <div className="flex justify-between gap-4 border-b-2 border-stone-700 pb-2">
                   <span>Move</span>
-                  <span className="text-stone-400">← → or A D</span>
+                  <span className="text-stone-400 text-right">
+                    ← → · A D
+                    <br />
+                    <span className="text-stone-500 text-[11px]">
+                      Desktop: pointer to left / right edge
+                    </span>
+                  </span>
                 </div>
                 <div className="flex justify-between border-b-2 border-stone-700 pb-2">
                   <span>Run</span>
@@ -145,19 +151,6 @@ export function HUDOverlay({
         )}
       </AnimatePresence>
 
-      {/* First-time hint */}
-      <AnimatePresence>
-        {loopCount === 0 && (
-          <motion.div
-            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-30 text-stone-600 text-[10px] tracking-[0.3em] hidden md:block"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.6, 0.6, 0] }}
-            transition={{ duration: 6, times: [0, 0.2, 0.8, 1] }}
-          >
-            ← use arrow keys to move →
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }
