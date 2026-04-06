@@ -20,16 +20,16 @@ export function PointerGuide({
       className="fixed inset-0 z-20 pointer-events-none hidden md:block"
       aria-hidden
     >
-      {/* Edge zones — brighten while pointer is steering */}
+      {/* Edge zones (30% each) — brighten while pointer is steering */}
       <motion.div
-        className="absolute inset-y-0 left-0 w-[26%] bg-gradient-to-r from-amber-500/25 via-amber-400/5 to-transparent"
+        className="absolute inset-y-0 left-0 w-[30%] bg-gradient-to-r from-amber-500/25 via-amber-400/5 to-transparent"
         animate={{
           opacity: pointerLeft ? 1 : emphasize ? 0.35 : 0,
         }}
         transition={{ duration: 0.2 }}
       />
       <motion.div
-        className="absolute inset-y-0 right-0 w-[26%] bg-gradient-to-l from-amber-500/25 via-amber-400/5 to-transparent"
+        className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-amber-500/25 via-amber-400/5 to-transparent"
         animate={{
           opacity: pointerRight ? 1 : emphasize ? 0.35 : 0,
         }}
@@ -38,7 +38,7 @@ export function PointerGuide({
 
       {/* Center dead zone — only while onboarding */}
       {emphasize && (
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[48%] border-x border-dashed border-stone-500/25" />
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[40%] border-x border-dashed border-stone-500/25" />
       )}
 
       {emphasize && (
@@ -99,6 +99,12 @@ export function PointerGuide({
             </p>
           </div>
         </>
+      )}
+
+      {!emphasize && (
+        <p className="absolute bottom-28 left-1/2 -translate-x-1/2 max-w-md px-4 text-center text-[9px] text-stone-600/90 tracking-wide">
+          마우스를 화면 <span className="text-stone-400">왼쪽·오른쪽 끝</span>으로 옮기면 이동합니다
+        </p>
       )}
     </div>
   );
