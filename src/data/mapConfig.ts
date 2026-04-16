@@ -12,6 +12,8 @@ export interface MapNode {
   label?: string;
   route?: string; // For portals
   text?: string; // For monolith
+  variant?: 'default' | 'grand'; // For portals — grand = large ornate door
+  scale?: number; // Visual scale multiplier (default 1)
 }
 
 // ============================================
@@ -76,28 +78,33 @@ export const MAP_NODES: MapNode[] = [
     type: 'portal',
     x: 1700,
     width: 100,
-    label: 'Writing',
+    label: 'Miscellany',
     route: '/writing',
   },
-  {
-    id: 'portal-about',
-    type: 'portal',
-    x: 1950,
-    width: 100,
-    label: 'About',
-    route: '/about',
-  },
-  
-  // 4. Note Monolith - Central statement
+
+  // 4. Small Monolith - decorative accent next to Miscellany
+  // Scaled to 20% of original size. Centered ~x=2000 (former About spot).
   {
     id: 'monolith',
     type: 'monolith',
-    x: 2400,
-    width: 200,
+    x: 1980,
+    width: 40,
+    scale: 0.2,
     text: 'Pathology is not an event but a repeating structure of choice.',
   },
+
+  // 5. Grand About Portal - 2.2× former monolith size. Centered ~x=2500.
+  {
+    id: 'portal-about',
+    type: 'portal',
+    x: 2280,
+    width: 440,
+    label: 'About',
+    route: '/about',
+    variant: 'grand',
+  },
   
-  // 5. Return Node - Symbolic return
+  // 6. Return Node - Symbolic return
   {
     id: 'return',
     type: 'return',
@@ -105,8 +112,8 @@ export const MAP_NODES: MapNode[] = [
     width: 120,
     label: 'grasp',
   },
-  
-  // 6. Loop Gate - Triggers loop
+
+  // 7. Loop Gate - Triggers loop
   {
     id: 'loop-gate',
     type: 'loop-gate',

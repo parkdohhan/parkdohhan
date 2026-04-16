@@ -34,11 +34,14 @@ export function MapNodeComponent({
       {node.type === 'wheelchair' && (
         <WheelchairNode label={node.label} loopCount={loopCount} />
       )}
-      {node.type === 'portal' && (
+      {node.type === 'portal' && node.variant === 'grand' && (
+        <GrandPortalNode label={node.label} isActive={isActive} />
+      )}
+      {node.type === 'portal' && node.variant !== 'grand' && (
         <PortalNode label={node.label} isActive={isActive} />
       )}
       {node.type === 'monolith' && (
-        <MonolithNode text={node.text} loopCount={loopCount} />
+        <MonolithNode text={node.text} loopCount={loopCount} scale={node.scale ?? 1} />
       )}
       {node.type === 'return' && (
         <ReturnNode label={node.label} loopCount={loopCount} />
@@ -175,14 +178,138 @@ function PortalNode({ label, isActive }: { label?: string; isActive: boolean }) 
   );
 }
 
-function MonolithNode({ text, loopCount }: { text?: string; loopCount: number }) {
+function GrandPortalNode({ label, isActive }: { label?: string; isActive: boolean }) {
+  // 2.2× former monolith stone (192×224) → ~420×490 archway
+  return (
+    <div className="relative flex flex-col items-center justify-end pb-8" style={{ height: 600 }}>
+      <motion.div
+        className="relative"
+        style={{ width: 420, height: 490 }}
+        animate={{ scale: isActive ? 1.02 : 1 }}
+        transition={{ duration: 0.4 }}
+      >
+        {/* Outer ornate frame */}
+        <motion.div
+          className="absolute inset-0 border-2 rounded-t-full"
+          style={{
+            borderColor: isActive ? 'rgb(214, 208, 204)' : 'rgb(120, 113, 108)',
+          }}
+          animate={{
+            boxShadow: isActive
+              ? '0 0 80px rgba(214, 208, 204, 0.4), inset 0 0 60px rgba(214, 208, 204, 0.15)'
+              : '0 0 30px rgba(120, 113, 108, 0.12), inset 0 0 20px rgba(120, 113, 108, 0.05)',
+          }}
+          transition={{ duration: 0.6 }}
+        />
+
+        {/* Inner frame */}
+        <div
+          className="absolute border rounded-t-full"
+          style={{
+            inset: 14,
+            borderColor: isActive ? 'rgba(214, 208, 204, 0.55)' : 'rgba(120, 113, 108, 0.4)',
+          }}
+        />
+
+        {/* Third filigree line */}
+        <div
+          className="absolute rounded-t-full"
+          style={{
+            inset: 26,
+            border: '1px solid',
+            borderColor: isActive ? 'rgba(214, 208, 204, 0.25)' : 'rgba(120, 113, 108, 0.2)',
+          }}
+        />
+
+        {/* Keystone diamond at top center */}
+        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: 34 }}>
+          <motion.div
+            className="w-5 h-5 border rotate-45"
+            style={{
+              borderColor: isActive ? 'rgba(214, 208, 204, 0.8)' : 'rgba(120, 113, 108, 0.6)',
+            }}
+            animate={{ opacity: isActive ? [0.7, 1, 0.7] : 0.6 }}
+            transition={{ duration: 2.5, repeat: Infinity }}
+          />
+        </div>
+
+        {/* Side pillar marks */}
+        {[0.35, 0.55, 0.75].map((t) => (
+          <div key={t}>
+            <div
+              className="absolute w-2 h-px bg-stone-500/40"
+              style={{ left: 16, top: `${t * 100}%` }}
+            />
+            <div
+              className="absolute w-2 h-px bg-stone-500/40"
+              style={{ right: 16, top: `${t * 100}%` }}
+            />
+          </div>
+        ))}
+
+        {/* Vertical center line — cathedral spine */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 w-px"
+          style={{
+            top: 60,
+            bottom: 30,
+            background: 'linear-gradient(to bottom, rgba(168,162,158,0.25), rgba(168,162,158,0.05))',
+          }}
+        />
+
+        {/* Inner breathing glow */}
+        <motion.div
+          className="absolute rounded-t-full pointer-events-none"
+          style={{ inset: 30 }}
+          animate={{
+            background: isActive
+              ? [
+                  'radial-gradient(ellipse at bottom, rgba(214,208,204,0.18) 0%, transparent 65%)',
+                  'radial-gradient(ellipse at bottom, rgba(214,208,204,0.28) 0%, transparent 65%)',
+                  'radial-gradient(ellipse at bottom, rgba(214,208,204,0.18) 0%, transparent 65%)',
+                ]
+              : 'radial-gradient(ellipse at bottom, rgba(120,113,108,0.06) 0%, transparent 65%)',
+          }}
+          transition={{ duration: 2.4, repeat: Infinity }}
+        />
+
+        {/* Threshold line at bottom */}
+        <div className="absolute left-8 right-8 bottom-5 h-px bg-stone-400/40" />
+      </motion.div>
+
+      {/* Label — more prominent */}
+      {label && (
+        <motion.div
+          className="mt-6 flex flex-col items-center"
+          animate={{ opacity: isActive ? 1 : 0.7 }}
+        >
+          <span className="text-sm tracking-[0.5em] uppercase text-stone-300 font-light">
+            {label}
+          </span>
+          {isActive && (
+            <motion.span
+              className="mt-3 text-[10px] tracking-wider text-stone-400"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: [0.6, 1, 0.6], y: 0 }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              ↑ ENTER
+            </motion.span>
+          )}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+function MonolithNode({ text, loopCount, scale = 1 }: { text?: string; loopCount: number; scale?: number }) {
   // Text becomes clearer with more loops
   const clarity = Math.min(0.3 + loopCount * 0.1, 1);
-  
+
   return (
     <div className="relative h-72 flex flex-col items-center justify-end pb-8">
       {/* Monolith stone */}
-      <div className="relative">
+      <div className="relative" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom center' }}>
         <div className="w-48 h-56 bg-stone-900/80 border-2 border-stone-600 flex items-center justify-center p-4">
           {/* Etched text */}
           {text && (
