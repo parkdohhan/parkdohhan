@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>박도한 — quarrel · v0.2 sketch</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #f7f6f3;
+    overflow: hidden;
+    font-family: "Helvetica Neue", -apple-system, system-ui, sans-serif;
+    color: #111;
+    cursor: none;
+    user-select: none;
+  }
+
+  .stage {
+    position: relative;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    perspective: 1100px;
+    perspective-origin: 50% 50%;
+  }
+
+  .floor {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 30%;
+    background: radial-gradient(ellipse at center top, rgba(0,0,0,0.06), transparent 70%);
+    pointer-events: none;
+  }
+
+  .horizon {
+    position: absolute;
+    top: 60%; left: 0; right: 0;
+    height: 1px;
+    background: rgba(0,0,0,0.04);
+  }
+
+  .scene {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+
+  .world {
+    position: absolute;
+    left: 50%;
+    bottom: 22%;
+    width: 0;
+    height: 0;
+    transform-style: preserve-3d;
+  }
+
+  .floor-ring {
+    position: absolute;
+    left: -260px;
+    top: -260px;
+    width: 520px;
+    height: 520px;
+    border-radius: 50%;
+    border: 1px dashed rgba(0,0,0,0.07);
+    transform: rotateX(78deg);
+    transform-origin: center center;
+    pointer-events: none;
+  }
+
+  .mannequin {
+    position: absolute;
+    left: -45px;
+    bottom: 0;
+    width: 90px;
+    height: 240px;
+    transform-style: preserve-3d;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  .mannequin svg {
+    display: block;
+  }
+
+  .mannequin .label {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: #999;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .mannequin.critic .label {
+    display: none;
+  }
+
+  .vignette {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 35%;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 5;
+    will-change: opacity;
+  }
+  .vignette.left {
+    left: 0;
+    background: linear-gradient(to right, rgba(0,0,0,0.22), transparent);
+  }
+  .vignette.right {
+    right: 0;
+    background: linear-gradient(to left, rgba(0,0,0,0.22), transparent);
+  }
+
+  .cursor-dot {
+    position: fixed;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #111;
+    pointer-events: none;
+    z-index: 100;
+    transform: translate(-50%, -50%);
+    transition: width 0.15s ease, height 0.15s ease;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.25);
+    pointer-events: none;
+    z-index: 99;
+    transform: translate(-50%, -50%) scale(1);
+    transition: transform 0.25s ease, border-color 0.2s ease;
+  }
+  .cursor-ring.edge {
+    transform: translate(-50%, -50%) scale(1.8);
+    border-color: rgba(0,0,0,0.6);
+  }
+
+  .hud-tl {
+    position: fixed;
+    top: 22px; left: 24px;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: #aaa;
+    z-index: 10;
+    pointer-events: none;
+    text-transform: uppercase;
+  }
+  .hud-tl .thesis {
+    margin-top: 4px;
+    font-style: italic;
+    color: #555;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0.04em;
+  }
+
+  .hud-tr {
+    position: fixed;
+    top: 22px; right: 24px;
+    font-family: "SF Mono", monospace;
+    font-size: 10px;
+    color: #bbb;
+    z-index: 10;
+    pointer-events: none;
+    letter-spacing: 0.1em;
+  }
+
+  .hint {
+    position: fixed;
+    bottom: 28px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    color: #c5c5c5;
+    z-index: 10;
+    pointer-events: none;
+    text-transform: uppercase;
+    animation: fade-hint 9s ease-out forwards;
+  }
+  @keyframes fade-hint {
+    0%, 60% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  .critic-line {
+    position: fixed;
+    bottom: 22%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: #ddd;
+    text-align: center;
+    max-width: 480px;
+    line-height: 1.6;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    font-style: italic;
+  }
+  .critic-line.show { opacity: 1; }
+
+  .dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(247, 246, 243, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 200;
+    transition: opacity 0.4s ease;
+  }
+  .dialog-backdrop.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .dialog {
+    position: fixed;
+    top: 50%; left: 50%;
+    width: min(92vw, 560px);
+    max-height: 82vh;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ececec;
+    padding: 52px 56px 44px;
+    z-index: 201;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -48%) scale(0.97);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.08);
+  }
+  .dialog.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .dialog.critic-dialog {
+    background: #0c0c0c;
+    color: #eee;
+    border-color: #1a1a1a;
+  }
+
+  .dialog-close {
+    position: absolute;
+    top: 14px; right: 18px;
+    background: none;
+    border: none;
+    font-size: 26px;
+    color: #aaa;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 10px;
+    font-family: inherit;
+  }
+  .dialog-close:hover { color: #111; }
+  .dialog.critic-dialog .dialog-close { color: #888; }
+  .dialog.critic-dialog .dialog-close:hover { color: #fff; }
+
+  .dialog h2 {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    color: #bbb;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-weight: 400;
+  }
+  .dialog.critic-dialog h2 { color: #555; }
+
+  .dialog .self-name {
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    margin-bottom: 22px;
+    color: #111;
+  }
+  .dialog.critic-dialog .self-name { color: #fafafa; }
+
+  .dialog .tone {
+    font-size: 11px;
+    color: #999;
+    letter-spacing: 0.12em;
+    margin-bottom: 14px;
+  }
+  .dialog.critic-dialog .tone { color: #888; }
+
+  .dialog .signature {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 36px;
+  }
+  .dialog .signature span {
+    font-size: 11px;
+    color: #888;
+    border: 1px solid #e8e8e8;
+    padding: 4px 11px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+  }
+  .dialog.critic-dialog .signature span {
+    color: #999;
+    border-color: #2a2a2a;
+  }
+
+  .dialog .topic {
+    font-size: 9px;
+    letter-spacing: 0.32em;
+    color: #c5c5c5;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .dialog.critic-dialog .topic { color: #666; }
+
+  .dialog .monologue {
+    font-size: 15px;
+    line-height: 1.9;
+    color: #222;
+    margin-bottom: 38px;
+    letter-spacing: 0.005em;
+  }
+  .dialog.critic-dialog .monologue {
+    color: #ddd;
+    font-style: italic;
+  }
+
+  .dialog .others-title {
+    font-size: 9px;
+    letter-spacing: 0.32em;
+    color: #c5c5c5;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    border-top: 1px solid #eee;
+    padding-top: 28px;
+  }
+  .dialog.critic-dialog .others-title {
+    color: #666;
+    border-top-color: #1f1f1f;
+  }
+
+  .dialog .others { display: flex; flex-direction: column; gap: 14px; }
+  .dialog .others .entry {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 18px;
+    align-items: baseline;
+  }
+  .dialog .others .entry .who {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: #aaa;
+    text-transform: uppercase;
+  }
+  .dialog .others .entry .what {
+    font-size: 13px;
+    color: #444;
+    line-height: 1.6;
+  }
+  .dialog.critic-dialog .others .entry .who { color: #777; }
+  .dialog.critic-dialog .others .entry .what { color: #ccc; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hint::after { content: " · reduced motion: use ← → keys"; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="horizon"></div>
+    <div class="floor"></div>
+
+    <div class="scene">
+      <div class="world">
+        <div class="floor-ring"></div>
+
+        <div class="mannequin" data-angle="-50" data-self="novelist">
+          <div class="label">소설가</div>
+          <svg width="90" height="220" viewBox="0 0 90 220">
+            <ellipse cx="45" cy="32" rx="20" ry="22" fill="#dad7d0"/>
+            <path d="M 28 56 Q 45 50 62 56 L 70 120 L 66 215 L 24 215 L 20 120 Z" fill="#dad7d0"/>
+            <ellipse cx="45" cy="218" rx="22" ry="3" fill="rgba(0,0,0,0.15)"/>
+          </svg>
+        </div>
+
+        <div class="mannequin" data-angle="0" data-self="film">
+          <div class="label">영화</div>
+          <svg width="90" height="220" viewBox="0 0 90 220">
+            <ellipse cx="45" cy="32" rx="20" ry="22" fill="#dad7d0"/>
+            <path d="M 28 56 Q 45 50 62 56 L 70 120 L 66 215 L 24 215 L 20 120 Z" fill="#dad7d0"/>
+            <ellipse cx="45" cy="218" rx="22" ry="3" fill="rgba(0,0,0,0.15)"/>
+          </svg>
+        </div>
+
+        <div class="mannequin" data-angle="50" data-self="interactive">
+          <div class="label">인터랙티브</div>
+          <svg width="90" height="220" viewBox="0 0 90 220">
+            <ellipse cx="45" cy="32" rx="20" ry="22" fill="#dad7d0"/>
+            <path d="M 28 56 Q 45 50 62 56 L 70 120 L 66 215 L 24 215 L 20 120 Z" fill="#dad7d0"/>
+            <ellipse cx="45" cy="218" rx="22" ry="3" fill="rgba(0,0,0,0.15)"/>
+          </svg>
+        </div>
+
+        <div class="mannequin critic" data-angle="180" data-self="critic">
+          <div class="label">비평가</div>
+          <svg width="90" height="220" viewBox="0 0 90 220">
+            <ellipse cx="45" cy="32" rx="20" ry="22" fill="#0c0c0c"/>
+            <path d="M 28 56 Q 45 50 62 56 L 70 120 L 66 215 L 24 215 L 20 120 Z" fill="#0c0c0c"/>
+            <ellipse cx="45" cy="218" rx="22" ry="3" fill="rgba(0,0,0,0.25)"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="vignette left"></div>
+    <div class="vignette right"></div>
+  </div>
+
+  <div class="hud-tl">
+    <div>박도한</div>
+    <div class="thesis">i am not one. i am a quarrel.</div>
+  </div>
+
+  <div class="hud-tr" id="compass">∠ 0°</div>
+
+  <div class="critic-line" id="criticLine">
+    이 셋이 자기가 진짜라고 우기는 거 들었지?<br>셋 다 가짜야.
+  </div>
+
+  <div class="hint">— move cursor toward the edges · click a mannequin —</div>
+
+  <div class="dialog-backdrop" id="dialogBackdrop"></div>
+  <div class="dialog" id="dialog">
+    <button class="dialog-close" id="dialogClose">×</button>
+    <div class="dialog-content" id="dialogContent"></div>
+  </div>
+
+  <div class="cursor-ring" id="cursorRing"></div>
+  <div class="cursor-dot" id="cursor"></div>
+
+  <script>
+  (() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const mannequinEls = Array.from(document.querySelectorAll('.mannequin'));
+    const mannequins = mannequinEls.map(el => ({
+      el,
+      angle: parseFloat(el.dataset.angle),
+      self: el.dataset.self,
+    }));
+
+    const vignetteL = document.querySelector('.vignette.left');
+    const vignetteR = document.querySelector('.vignette.right');
+    const compass = document.getElementById('compass');
+    const cursor = document.getElementById('cursor');
+    const cursorRing = document.getElementById('cursorRing');
+    const criticLine = document.getElementById('criticLine');
+    const dialog = document.getElementById('dialog');
+    const dialogBackdrop = document.getElementById('dialogBackdrop');
+    const dialogContent = document.getElementById('dialogContent');
+    const dialogCloseBtn = document.getElementById('dialogClose');
+
+    const SELVES = {
+      novelist: {
+        name: '소설가',
+        tone: '만연체 · 한자어와 토속어 · 우회와 여운',
+        signature: ['결국엔', '어쩌면', '문득'],
+        topic: 'NYFA 진학에 관하여',
+        monologue: '엔터테인먼트 미디어과라는 단어를 처음 들었을 때 나는, 솔직히 잠깐 멈췄다. 엔터테인먼트라는 말이 가진 그 가벼움 — 누군가의 시간을 채우기 위해 만들어지는 것들의 결 — 이 어쩐지 내가 쓰던 문장의 결과는 너무 멀어 보여서. 그래도 가는 게 맞다고 머리는 알고 있었다.',
+        others: [
+          { who: '영화', what: '프레임을 빌리려는 마음, 어쩐지 안쓰럽다.' },
+          { who: '인터랙티브', what: '맞는 말 같으면서도 늘 자조가 새어 나온다.' },
+          { who: '비평가', what: '그도 결국엔 우리 중 하나가 아닐까.' },
+        ],
+      },
+      film: {
+        name: '영화',
+        tone: '시네마틱 어휘 · 회상조',
+        signature: ['장면이', '프레임', '그 순간'],
+        topic: 'NYFA 진학에 관하여',
+        monologue: '필름 스쿨이 끝물이라는 얘기는 십 년 전부터 있었어. 근데 카메라 앞에 서본 적 있는 사람과 없는 사람의 차이는 영원히 안 좁혀져. 거기서 한 컷이라도 내 손으로 찍어본다는 게 — 그게 충분한 이유다.',
+        others: [
+          { who: '소설가', what: '글로만 끝나는 사람. 한 컷도 안 찍어봤지.' },
+          { who: '인터랙티브', what: '코드는 잘 짜는데, 장면은 못 만들어.' },
+          { who: '비평가', what: '본 적은 있나, 자기 손으로 만든 건.' },
+        ],
+      },
+      interactive: {
+        name: '인터랙티브',
+        tone: '짧고 끊어침 · 영문 코드 용어 · 의심 많음',
+        signature: ['근데', '사실은', '라고 하지만'],
+        topic: 'NYFA 진학에 관하여',
+        monologue: '근데 거기 인터랙티브 트랙이 약한 건 사실이야. ITP나 RCA였으면 이런 토론도 없었지. 셋이 다 자기 입장에서 좋다고 말하고 있는데, 솔직히 나는 거기 가면 내가 손해 본다고 생각해. 가긴 갈 거야. 근데 그건 이 셋이 결정한 거고, 나는 졌어.',
+        others: [
+          { who: '소설가', what: '근데 그 만연체는 좀 줄여야 함.' },
+          { who: '영화', what: '필름 스쿨 얘기 그만 좀.' },
+          { who: '비평가', what: '사실 얘가 제일 정확함. 인정.' },
+        ],
+      },
+      critic: {
+        name: '비평가',
+        tone: '음침 · 자조 · 메타 — 작품 없음, 발화만',
+        signature: ['결국', '근데', '왜'],
+        topic: 'NYFA 진학에 관하여',
+        monologue: '넷이 다 핑계 대고 있는 거 들었지? 사실 진짜 이유는 따로 있는데, 본인들이 가장 마지막에 인정해. 늘 그래. 어쨌든 비행기 표는 끊겼고, 우리는 가.',
+        others: [
+          { who: '소설가', what: '여운으로 도망치는 거잖아.' },
+          { who: '영화', what: '장면을 회상하면서 자기를 영웅화하는 거.' },
+          { who: '인터랙티브', what: '메타 자조가 또 다른 포즈라는 거, 알면서.' },
+          { who: '자기 자신', what: '나도 결국 자기 합리화의 한 형태고.' },
+        ],
+      },
+    };
+
+    let dialogOpen = false;
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function openDialog(selfKey) {
+      const data = SELVES[selfKey];
+      if (!data) return;
+      const html =
+        `<h2>박도한</h2>` +
+        `<div class="self-name">${escapeHtml(data.name)}</div>` +
+        `<div class="tone">${escapeHtml(data.tone)}</div>` +
+        `<div class="signature">${data.signature.map(w => `<span>"${escapeHtml(w)}"</span>`).join('')}</div>` +
+        `<div class="topic">${escapeHtml(data.topic)}</div>` +
+        `<div class="monologue">${escapeHtml(data.monologue)}</div>` +
+        `<div class="others-title">다른 자아들에 대해</div>` +
+        `<div class="others">${data.others.map(o =>
+          `<div class="entry"><div class="who">${escapeHtml(o.who)}</div><div class="what">${escapeHtml(o.what)}</div></div>`
+        ).join('')}</div>`;
+      dialogContent.innerHTML = html;
+      dialog.classList.toggle('critic-dialog', selfKey === 'critic');
+      dialog.classList.add('show');
+      dialogBackdrop.classList.add('show');
+      dialogOpen = true;
+      velocity = 0;
+    }
+
+    function closeDialog() {
+      dialog.classList.remove('show');
+      dialogBackdrop.classList.remove('show');
+      dialogOpen = false;
+    }
+
+    dialogBackdrop.addEventListener('click', closeDialog);
+    dialogCloseBtn.addEventListener('click', closeDialog);
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && dialogOpen) closeDialog();
+    });
+
+    mannequinEls.forEach((el) => {
+      el.style.pointerEvents = 'auto';
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDialog(el.dataset.self);
+      });
+    });
+
+    let cameraAngle = 0;       // current camera angle, degrees
+    let velocity = 0;          // angular velocity
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+    let criticDiscovered = false;
+    let keyDir = 0;            // -1, 0, +1 from arrow keys
+
+    const DEAD_ZONE_RATIO = 0.32;     // center 64% is inactive
+    const MAX_VEL = 1.4;              // deg per frame at extreme edge
+    const FRICTION = 0.86;            // velocity decay outside edge
+    const CLAMP = 180;                // can't rotate past critic
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function getEdgePush() {
+      const w = window.innerWidth;
+      const center = w / 2;
+      const dist = mouseX - center;
+      const deadZone = w * DEAD_ZONE_RATIO;
+      if (Math.abs(dist) <= deadZone) return 0;
+      const edgeRange = (w / 2) - deadZone;
+      const t = (Math.abs(dist) - deadZone) / edgeRange;     // 0..1
+      const eased = Math.pow(t, 2.2);                        // quadratic-ish ramp
+      return Math.sign(dist) * eased * MAX_VEL;
+    }
+
+    function updateVignettes() {
+      const w = window.innerWidth;
+      const center = w / 2;
+      const dist = mouseX - center;
+      const deadZone = w * DEAD_ZONE_RATIO;
+      const edgeRange = (w / 2) - deadZone;
+      let intensity = 0;
+      if (Math.abs(dist) > deadZone) {
+        intensity = Math.min(1, (Math.abs(dist) - deadZone) / edgeRange);
+        intensity = Math.pow(intensity, 1.4);
+        cursorRing.classList.add('edge');
+      } else {
+        cursorRing.classList.remove('edge');
+      }
+      vignetteL.style.opacity = dist < 0 ? intensity : 0;
+      vignetteR.style.opacity = dist > 0 ? intensity : 0;
+    }
+
+    const RADIUS = 360; // px — circle radius around viewer
+
+    function renderMannequins() {
+      for (const m of mannequins) {
+        let rel = m.angle - cameraAngle;
+        while (rel > 180) rel -= 360;
+        while (rel < -180) rel += 360;
+
+        // Hide if behind viewer (more than ±90° off camera)
+        if (Math.abs(rel) > 88) {
+          m.el.style.opacity = '0';
+          m.el.style.visibility = 'hidden';
+          continue;
+        }
+        m.el.style.visibility = 'visible';
+
+        // Fade only at extreme edges (near ±90°)
+        const opacity = Math.max(0, 1 - Math.pow(Math.abs(rel) / 88, 4));
+        m.el.style.opacity = String(opacity);
+
+        // 3D placement on circle, then face camera
+        m.el.style.transform =
+          `rotateY(${rel}deg) translateZ(${-RADIUS}px) rotateY(${-rel}deg)`;
+        m.el.style.zIndex = String(Math.round(500 - Math.abs(rel)));
+      }
+    }
+
+    function update() {
+      if (dialogOpen) {
+        velocity = 0;
+        vignetteL.style.opacity = '0';
+        vignetteR.style.opacity = '0';
+        cursorRing.classList.remove('edge');
+        renderMannequins();
+        compass.textContent = `∠ ${Math.round(((cameraAngle % 360) + 360) % 360)}°`;
+        requestAnimationFrame(update);
+        return;
+      }
+
+      // velocity from input
+      const edgePush = getEdgePush();
+      const keyPush = keyDir * MAX_VEL * 1.4;
+      const targetVel = edgePush + keyPush;
+
+      if (Math.abs(targetVel) > 0.001) {
+        velocity = lerp(velocity, targetVel, 0.18);
+      } else {
+        velocity *= FRICTION;
+      }
+
+      cameraAngle += velocity;
+
+      // Clamp at ±180 (critic position) — soft snap
+      if (cameraAngle >= CLAMP) {
+        cameraAngle = CLAMP;
+        velocity = 0;
+        if (!criticDiscovered) {
+          criticDiscovered = true;
+          criticLine.classList.add('show');
+        }
+      } else if (cameraAngle <= -CLAMP) {
+        cameraAngle = -CLAMP;
+        velocity = 0;
+        if (!criticDiscovered) {
+          criticDiscovered = true;
+          criticLine.classList.add('show');
+        }
+      }
+
+      // Hide critic line when leaving back-view
+      if (Math.abs(Math.abs(cameraAngle) - 180) > 12) {
+        criticLine.classList.remove('show');
+      } else if (criticDiscovered) {
+        criticLine.classList.add('show');
+      }
+
+      renderMannequins();
+      updateVignettes();
+      compass.textContent = `∠ ${Math.round(((cameraAngle % 360) + 360) % 360)}°`;
+
+      requestAnimationFrame(update);
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      cursor.style.left = e.clientX + 'px';
+      cursor.style.top = e.clientY + 'px';
+      cursorRing.style.left = e.clientX + 'px';
+      cursorRing.style.top = e.clientY + 'px';
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') keyDir = -1;
+      else if (e.key === 'ArrowRight') keyDir = 1;
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') keyDir = 0;
+    });
+
+    // Touch: swipe left/right
+    let touchStartX = null;
+    window.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+    });
+    window.addEventListener('touchmove', (e) => {
+      if (touchStartX === null) return;
+      const dx = e.touches[0].clientX - touchStartX;
+      cameraAngle = Math.max(-CLAMP, Math.min(CLAMP, cameraAngle - dx * 0.3));
+      touchStartX = e.touches[0].clientX;
+    });
+    window.addEventListener('touchend', () => { touchStartX = null; });
+
+    update();
+  })();
+  </script>
+</body>
+</html>
