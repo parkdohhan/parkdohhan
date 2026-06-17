@@ -12,6 +12,16 @@ import {
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { Nanum_Gothic } from 'next/font/google';
+
+// 나눔고딕 — 빌드타임 셀프호스팅(런타임 외부 요청 0). 한글 글리프 위해 korean subset 포함.
+const nanumGothic = Nanum_Gothic({
+  weight: ['400', '700'],
+  subsets: ['latin', 'korean'],
+  variable: '--font-nanum',
+  display: 'swap',
+  preload: false, // korean subset 대용량 → preload 경고 방지(자막은 LCP 아님)
+});
 
 const MODEL = '/models/ybot.glb';
 useGLTF.preload(MODEL);
@@ -46,14 +56,22 @@ const FACE: [number, number] = [CAMERA_POS[0], CAMERA_POS[2]];
 const LOOK_YAW0 = Math.PI / 4;
 const LOOK_PITCH0 = -0.08;
 
-// 세 자아: 플레이어 바로 앞(+AXIS)에 완만한 호로 서서 플레이어를 마주 본다.
+// 세 자아: 플레이어를 등거리(R_SELF)로 둘러싸는 반원 호에 선다.
+//   셋 다 플레이어로부터 같은 거리 → 아무도 더 앞서지 않음(주인공 없음).
+//   정면 하나는 멀고 양옆 둘이 플레이어 쪽으로 살짝 감싸 "포위" 느낌을 준다.
 // 비평가: 정반대편(−AXIS, 플레이어 등 뒤) 모서리에 홀로 서서 플레이어를 본다.
 //   → 정면을 보면 세 자아만, 뒤돌아야 비평가만 보인다(한 화면에 같이 안 잡힘).
+const R_SELF = 2.5; // 플레이어 ↔ 흰 자아 등거리 반경
+// 플레이어를 중심으로 시선축(+AXIS) 기준 phi°에 선 자아의 바닥 좌표
+function ring(phiDeg: number, r = R_SELF): [number, number, number] {
+  const phi = (phiDeg * Math.PI) / 180;
+  return at(PLAYER_S + r * Math.cos(phi), r * Math.sin(phi));
+}
 const SELVES = [
-  { key: 'novelist',    label: '소설가',     pos: at(0.2, -1.1),  seed: 0.0, critic: false, confront: true },
-  { key: 'film',        label: '영화',       pos: at(-0.2, 0.0),  seed: 0.4, critic: false, confront: true },
-  { key: 'interactive', label: '인터랙티브', pos: at(0.2,  1.1),  seed: 0.8, critic: false, confront: true },
-  { key: 'critic',      label: '비평가',     pos: at(-6.9, 0.0),  seed: 0.6, critic: true,  confront: true },
+  { key: 'novelist',    label: '소설가',     pos: ring(-30), seed: 0.0, critic: false, confront: true },
+  { key: 'film',        label: '영화',       pos: ring(0),   seed: 0.4, critic: false, confront: true },
+  { key: 'interactive', label: '인터랙티브', pos: ring(30),  seed: 0.8, critic: false, confront: true },
+  { key: 'critic',      label: '비평가',     pos: at(-6.9, 0.0), seed: 0.6, critic: true,  confront: true },
 ];
 
 function Mannequin({
@@ -295,6 +313,7 @@ export default function QuarrelScene() {
 
   return (
     <div
+      className={nanumGothic.variable}
       style={{
         position: 'fixed',
         inset: 0,
@@ -381,8 +400,10 @@ export default function QuarrelScene() {
         />
       </div>
 
-      {/* 영화 자막 */}
-      <div className={'q-subtitle' + (subtitle ? ' show' : '')}>{subtitle}</div>
+      {/* 영화 자막 — 넷플릭스 톤(검회색 박스 + 나눔고딕) */}
+      <div className={'q-subtitle' + (subtitle ? ' show' : '')}>
+        {subtitle && <span>{subtitle}</span>}
+      </div>
 
       <style>{`
         .q-cursor {
@@ -439,23 +460,34 @@ export default function QuarrelScene() {
         .q-subtitle {
           position: fixed;
           left: 50%;
-          bottom: 8%;
-          transform: translateX(-50%) translateY(10px);
-          max-width: 80vw;
+          bottom: 9%;
+          transform: translateX(-50%) translateY(8px);
+          max-width: 86vw;
           text-align: center;
-          color: #f4f3ef;
-          font-family: 'Times New Roman', 'Nanum Myeongjo', serif;
-          font-size: clamp(17px, 2.4vw, 27px);
-          letter-spacing: 0.06em;
-          text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 2px rgba(0, 0, 0, 0.55);
           opacity: 0;
           pointer-events: none;
           z-index: 60;
-          transition: opacity 0.5s ease, transform 0.5s ease;
+          transition: opacity 0.3s ease, transform 0.3s ease;
         }
         .q-subtitle.show {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
+        }
+        /* 텍스트 줄에만 깔리는 검회색 박스 — 넷플릭스 자막 톤 */
+        .q-subtitle span {
+          background: rgba(34, 34, 34, 0.85);
+          color: #ffffff;
+          font-family: var(--font-nanum), 'Malgun Gothic',
+            'Apple SD Gothic Neo', sans-serif;
+          font-weight: 400;
+          font-size: clamp(18px, 2.5vw, 30px);
+          line-height: 1.55;
+          letter-spacing: 0.005em;
+          padding: 0.1em 0.42em;
+          border-radius: 2px;
+          box-decoration-break: clone;
+          -webkit-box-decoration-break: clone;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
       `}</style>
     </div>
