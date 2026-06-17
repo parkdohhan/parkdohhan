@@ -8,6 +8,7 @@ import {
   useAnimations,
   AdaptiveDpr,
   PerformanceMonitor,
+  Html,
 } from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
@@ -58,7 +59,7 @@ const LOOK_PITCH0 = -0.08;
 //   같은 거리라 주인공 쏠림이 없고, 양옆이 플레이어 쪽으로 살짝 감싼다.
 //   shadow(비평가)는 정반대편 모서리(뒤돌아야 보임).
 
-type MannequinKey = 'worker' | 'media' | 'writer' | 'shadow';
+type MannequinKey = 'worker' | 'builder' | 'director' | 'shadow';
 
 interface MannequinDef {
   key: MannequinKey;
@@ -72,8 +73,8 @@ interface MannequinDef {
   openingLine: string;
   // 호버 시 짧은 힌트
   hoverLine: string;
-  // 이 마네킹에 연결된 medium 필터 (projects.ts 기준)
-  mediums: Array<'web' | 'video' | 'writing' | 'engine'>;
+  // 이 마네킹이 보여줄 작품 id 목록 (projects.ts의 id) — 명시 매핑으로 자아 간 작품 격리
+  projectIds: string[];
   // 작품별 TMI 대사 맵 (project id → 대사 배열)
   tmiMap: Record<string, string[]>;
 }
@@ -89,47 +90,52 @@ const SELVES: MannequinDef[] = [
   {
     key: 'worker',
     label: 'Worker',
-    sublabel: 'Commercial',
+    sublabel: 'Commissioned',
     pos: ring(-30),
     seed: 0.0,
     critic: false,
     confront: true,
     openingLine: '',
     hoverLine: '',
-    mediums: ['video'],
+    // 상업·의뢰 작업만. Sidekick(예술 단편)은 Director로 격리.
+    projectIds: ['video-work-2', 'gana-cosmetics'],
     tmiMap: {
       'video-work-2': [],
-      'collab-hyunhwi': [],
+      'gana-cosmetics': [],
     },
   },
   {
-    key: 'media',
-    label: 'Media',
-    sublabel: 'Personal Work',
+    key: 'builder',
+    label: 'Builder',
+    sublabel: 'Code & Systems',
     pos: ring(0),
     seed: 0.4,
     critic: false,
     confront: true,
     openingLine: '',
     hoverLine: '',
-    mediums: ['web', 'engine'],
+    // 코드로 짓는 것 — 인터랙티브 아트 + 엔진
+    projectIds: ['the-etched-mutation', 'byeori-engine'],
     tmiMap: {
       'the-etched-mutation': [],
       'byeori-engine': [],
     },
   },
   {
-    key: 'writer',
-    label: 'Writer',
-    sublabel: 'Text & Writing',
+    key: 'director',
+    label: 'Director',
+    sublabel: 'Film & Story',
     pos: ring(30),
     seed: 0.8,
     critic: false,
     confront: true,
     openingLine: '',
     hoverLine: '',
-    mediums: ['writing'],
-    tmiMap: {},
+    // 작가적 영상 — Sidekick(단편)
+    projectIds: ['collab-hyunhwi'],
+    tmiMap: {
+      'collab-hyunhwi': [],
+    },
   },
   {
     key: 'shadow',
@@ -141,7 +147,7 @@ const SELVES: MannequinDef[] = [
     confront: true,
     openingLine: '',
     hoverLine: '',
-    mediums: [],
+    projectIds: [],
     tmiMap: {},
   },
 ];
@@ -197,6 +203,18 @@ function Mannequin({
   return (
     <group>
       <primitive object={cloned} position={def.pos} rotation={[0, rotY, 0]} />
+      {/* 머리 위 이름표 — 외부 폰트 의존 0(drei Html). 비평가(shadow)는 미표시 */}
+      {!def.critic && (
+        <Html
+          position={[def.pos[0], 2.12, def.pos[2]]}
+          center
+          distanceFactor={9}
+          zIndexRange={[20, 0]}
+          style={{ pointerEvents: 'none' }}
+        >
+          <div className="q-nametag">{def.label}</div>
+        </Html>
+      )}
       <mesh
         position={[def.pos[0], 0.84, def.pos[2]]}
         onPointerOver={(e) => { e.stopPropagation(); onHover?.(true); }}
@@ -293,8 +311,8 @@ function PortfolioPanel({
   onProjectClick: (p: Project) => void;
   tmiLine: string;
 }) {
-  // 이 마네킹에 해당하는 프로젝트 필터링
-  const items = projects.filter((p) => def.mediums.includes(p.medium));
+  // 이 마네킹에 해당하는 프로젝트 — id 명시 매핑(자아 간 작품 격리)
+  const items = projects.filter((p) => def.projectIds.includes(p.id));
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeProject = items.find((p) => p.id === activeId) ?? null;
 
@@ -450,15 +468,18 @@ function PortfolioPanel({
                     {activeProject.description}
                   </p>
 
-                  {/* 미디어 이미지 */}
-                  {activeProject.media && (
-                    <div className="mb-8">
-                      <img
-                        src={activeProject.media}
-                        alt={activeProject.title}
-                        className="w-full object-cover"
-                        style={{ maxHeight: '260px' }}
-                      />
+                  {/* 미디어 이미지 — 여러 장 세로 갤러리, 원본 비율 유지(안 잘림) */}
+                  {activeProject.media && activeProject.media.length > 0 && (
+                    <div className="mb-8 flex flex-col gap-3">
+                      {activeProject.media.map((src, i) => (
+                        <img
+                          key={i}
+                          src={src}
+                          alt={`${activeProject.title} ${i + 1}`}
+                          className="w-full h-auto border border-stone-200"
+                          loading="lazy"
+                        />
+                      ))}
                     </div>
                   )}
 
@@ -695,6 +716,18 @@ export default function QuarrelScene() {
           box-decoration-break: clone;
           -webkit-box-decoration-break: clone;
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        /* 마네킹 머리 위 이름표 */
+        .q-nametag {
+          font-family: var(--font-nanum), 'Malgun Gothic', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.22em;
+          color: #2e2e2e;
+          text-transform: uppercase;
+          white-space: nowrap;
+          user-select: none;
+          text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9);
         }
       `}</style>
     </div>

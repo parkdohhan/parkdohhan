@@ -90,11 +90,11 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                     </div>
                   );
                 }
-                if (project.media) {
+                if (project.media && project.media.length > 0) {
                   return (
                     <div className="aspect-video bg-stone-800 mb-8 overflow-hidden relative">
                       <Image
-                        src={project.media}
+                        src={project.media[0]}
                         alt=""
                         fill
                         className="object-cover"

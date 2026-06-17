@@ -19,7 +19,7 @@ export interface Project {
   medium: 'web' | 'video' | 'writing' | 'engine';
   description: string;
   links: { label: string; url: string }[];
-  media?: string;
+  media?: string[];
 }
 
 const TEM_DESCRIPTION = `The Etched Mutation (TEM) is an interactive web artwork about how memories change when they are shared.
@@ -43,7 +43,7 @@ export const projects: Project[] = [
     links: [
       { label: 'Excerpt', url: 'https://www.the-etched-mutation.com' },
     ],
-    media: '/bg-terrain.png',
+    media: ['/bg-terrain.png'],
   },
   {
     id: 'byeori-engine',
@@ -76,6 +76,23 @@ export const projects: Project[] = [
     description: '현휘와 공동작업 (Collaboration with Hyunhwi). Short film. (Apr 2025)',
     links: [
       { label: 'Watch', url: 'https://youtu.be/MWgWe-qcbjA' },
+    ],
+  },
+  {
+    id: 'gana-cosmetics',
+    title: 'GANA Cosmetic',
+    year: 2026,
+    tags: [],
+    medium: 'web',
+    description:
+      'Cosmeceutical manufacturer website (B2B). Solo build — planning, design, and development.',
+    links: [
+      { label: 'Visit', url: 'https://gana-cosmetics.com' },
+    ],
+    media: [
+      '/projects/gana-hero.jpg',
+      '/projects/gana-catalog.jpg',
+      '/projects/gana-group.jpg',
     ],
   },
 ];
