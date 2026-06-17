@@ -1,41 +1,73 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   Environment,
   ContactShadows,
-  OrbitControls,
   useGLTF,
   useAnimations,
   AdaptiveDpr,
   PerformanceMonitor,
 } from '@react-three/drei';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const MODEL = '/models/ybot.glb';
 useGLTF.preload(MODEL);
 
-// 4중 자아 — 흰 방 안에 원형 배치, 중심을 바라본다.
-// angle: 0 = 정면, 180 = 비평가(정반대, 처음엔 카메라 뒤).
-const SELVES = [
-  { key: 'novelist', label: '소설가', angle: -50 },
-  { key: 'film', label: '영화', angle: 0 },
-  { key: 'interactive', label: '인터랙티브', angle: 50 },
-  { key: 'critic', label: '비평가', angle: 180 },
-];
-
 const TARGET_HEIGHT = 1.7; // m
 
+// ── 무대 축(스테이지) ───────────────────────────────────────
+// 플레이어(카메라)는 방의 뒷-왼쪽 모서리 근처에 서서 앞-오른쪽 모서리를
+// 바라본다. s = 시선축 거리(+가 플레이어에서 멀어지는 쪽), t = 좌우.
+const UP = new THREE.Vector3(0, 1, 0);
+const AXIS = new THREE.Vector3(1, 0, 1).normalize(); // 플레이어 시선 방향
+const SIDE = new THREE.Vector3().crossVectors(AXIS, UP).normalize();
+const STAGE = new THREE.Vector3(0, 0, 0); // 무대 기준점(자아 군집 중심)
+
+// 무대 기준점에서 시선축 s, 좌우 t 만큼 떨어진 바닥 좌표
+function at(s: number, t: number): [number, number, number] {
+  const p = STAGE.clone().addScaledVector(AXIS, s).addScaledVector(SIDE, t);
+  return [p.x, 0, p.z];
+}
+
+// 플레이어는 자아 군집 뒤(모서리 쪽)에 선다 = 예전 비평가 자리.
+const PLAYER_S = -2.5;
+const CAMERA_POS: [number, number, number] = [
+  at(PLAYER_S, 0)[0],
+  1.6,
+  at(PLAYER_S, 0)[2],
+];
+// 마네킹들이 바라보는 지점 = 플레이어 발밑 (yaw 계산에만 사용)
+const FACE: [number, number] = [CAMERA_POS[0], CAMERA_POS[2]];
+
+// 1인칭 초기 시선: 앞-오른쪽 모서리(+AXIS) = 세 자아를 마주 본다. 뒤돌면 비평가.
+const LOOK_YAW0 = Math.PI / 4;
+const LOOK_PITCH0 = -0.08;
+
+// 세 자아: 플레이어 바로 앞(+AXIS)에 완만한 호로 서서 플레이어를 마주 본다.
+// 비평가: 정반대편(−AXIS, 플레이어 등 뒤) 모서리에 홀로 서서 플레이어를 본다.
+//   → 정면을 보면 세 자아만, 뒤돌아야 비평가만 보인다(한 화면에 같이 안 잡힘).
+const SELVES = [
+  { key: 'novelist',    label: '소설가',     pos: at(0.2, -1.1),  seed: 0.0, critic: false, confront: true },
+  { key: 'film',        label: '영화',       pos: at(-0.2, 0.0),  seed: 0.4, critic: false, confront: true },
+  { key: 'interactive', label: '인터랙티브', pos: at(0.2,  1.1),  seed: 0.8, critic: false, confront: true },
+  { key: 'critic',      label: '비평가',     pos: at(-6.9, 0.0),  seed: 0.6, critic: true,  confront: true },
+];
+
 function Mannequin({
-  angle,
-  radius = 2.3,
+  pos,
+  face,
+  seed = 0,
   critic = false,
+  confront = false,
 }: {
-  angle: number;
-  radius?: number;
+  pos: [number, number, number];
+  face: [number, number];
+  seed?: number;
   critic?: boolean;
+  confront?: boolean;
 }) {
   const { scene, animations } = useGLTF(MODEL);
   // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제 (4개 독립 인스턴스)
@@ -47,11 +79,11 @@ function Mannequin({
     const action = Object.values(actions)[0];
     if (action) {
       action.reset();
-      action.time = (angle + 180) * 0.01 * (action.getClip().duration || 1);
+      action.time = seed * (action.getClip().duration || 1);
       action.setEffectiveTimeScale(0.9);
       action.play();
     }
-  }, [actions, angle]);
+  }, [actions, seed]);
 
   // 키 정규화(1.7m) + 그림자 + 비평가는 검은 톤
   useEffect(() => {
@@ -75,18 +107,14 @@ function Mannequin({
     });
   }, [cloned, critic]);
 
-  const rad = (angle * Math.PI) / 180;
-  const x = Math.sin(rad) * radius;
-  const z = -Math.cos(rad) * radius;
+  // 모델 기본 정면축은 +Z. dir = face - pos (= 플레이어 발밑 방향).
+  // confront=false: 플레이어를 등지고 정면 모서리를 향함(세 자아).
+  // confront=true : 모서리에 서서 플레이어/자아군을 마주 봄(비평가).
+  const dx = face[0] - pos[0];
+  const dz = face[1] - pos[2];
+  const rotY = confront ? Math.atan2(dx, dz) : Math.atan2(-dx, -dz);
 
-  return (
-    <primitive
-      object={cloned}
-      position={[x, 0, z]}
-      // 중심(카메라)을 바라보도록 회전
-      rotation={[0, rad + Math.PI, 0]}
-    />
-  );
+  return <primitive object={cloned} position={pos} rotation={[0, rotY, 0]} />;
 }
 
 function Room() {
@@ -128,15 +156,81 @@ function Room() {
   );
 }
 
+// 1인칭 시점: 카메라 위치는 초기 좌표에 고정, 드래그로 제자리에서 시점만 회전.
+function LookControls() {
+  const { camera, gl } = useThree();
+  const st = useRef({
+    dragging: false,
+    px: 0,
+    py: 0,
+    yaw: LOOK_YAW0,
+    pitch: LOOK_PITCH0,
+  });
+
+  useEffect(() => {
+    const dom = gl.domElement;
+    const down = (e: PointerEvent) => {
+      st.current.dragging = true;
+      st.current.px = e.clientX;
+      st.current.py = e.clientY;
+    };
+    const up = () => {
+      st.current.dragging = false;
+    };
+    const move = (e: PointerEvent) => {
+      if (!st.current.dragging) return;
+      const dx = e.clientX - st.current.px;
+      const dy = e.clientY - st.current.py;
+      st.current.px = e.clientX;
+      st.current.py = e.clientY;
+      st.current.yaw -= dx * 0.003;
+      // 위아래는 과회전 방지로 클램프 (좌우는 360° 자유)
+      st.current.pitch = Math.max(
+        -1.2,
+        Math.min(0.9, st.current.pitch - dy * 0.003),
+      );
+    };
+    dom.addEventListener('pointerdown', down);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointermove', move);
+    return () => {
+      dom.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointermove', move);
+    };
+  }, [gl]);
+
+  useFrame(() => {
+    const { yaw, pitch } = st.current;
+    // 몸(위치)은 고정, 시선만 회전
+    camera.position.set(CAMERA_POS[0], CAMERA_POS[1], CAMERA_POS[2]);
+    const cp = Math.cos(pitch);
+    camera.lookAt(
+      CAMERA_POS[0] + Math.sin(yaw) * cp,
+      CAMERA_POS[1] + Math.sin(pitch),
+      CAMERA_POS[2] + Math.cos(yaw) * cp,
+    );
+  });
+
+  return null;
+}
+
 export default function QuarrelScene() {
   const [dpr, setDpr] = useState(1.5);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#ecebe6' }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#ecebe6',
+        touchAction: 'none',
+      }}
+    >
       <Canvas
         shadows
         dpr={dpr}
-        camera={{ position: [0, 1.5, 4.2], fov: 42, near: 0.1, far: 100 }}
+        camera={{ position: CAMERA_POS, fov: 42, near: 0.1, far: 100 }}
         gl={{
           antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping,
@@ -157,7 +251,14 @@ export default function QuarrelScene() {
           <Environment files="/hdri/studio.hdr" />
           <Room />
           {SELVES.map((s) => (
-            <Mannequin key={s.key} angle={s.angle} critic={s.key === 'critic'} />
+            <Mannequin
+              key={s.key}
+              pos={s.pos}
+              face={FACE}
+              seed={s.seed}
+              critic={s.critic}
+              confront={s.confront}
+            />
           ))}
           {/* 발밑 접지 그림자 — 실사감의 핵심, shadowMap보다 저렴 */}
           <ContactShadows
@@ -187,13 +288,7 @@ export default function QuarrelScene() {
           shadow-bias={-0.0004}
         />
 
-        <OrbitControls
-          target={[0, 1.15, 0]}
-          enablePan={false}
-          minDistance={2}
-          maxDistance={7}
-          maxPolarAngle={Math.PI / 2.05}
-        />
+        <LookControls />
       </Canvas>
     </div>
   );
