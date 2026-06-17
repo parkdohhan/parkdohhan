@@ -9,99 +9,156 @@ import {
   AdaptiveDpr,
   PerformanceMonitor,
 } from '@react-three/drei';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { AnimatePresence, motion } from 'framer-motion';
+import { projects, Project, mediumLabels } from '@/data/projects';
 
 const MODEL = '/models/ybot.glb';
 useGLTF.preload(MODEL);
 
-const TARGET_HEIGHT = 1.7; // m
+const TARGET_HEIGHT = 1.7;
 
-// ── 무대 축(스테이지) ───────────────────────────────────────
-// 플레이어(카메라)는 방의 뒷-왼쪽 모서리 근처에 서서 앞-오른쪽 모서리를
-// 바라본다. s = 시선축 거리(+가 플레이어에서 멀어지는 쪽), t = 좌우.
+// ── 스테이지 ────────────────────────────────────────────────
 const UP = new THREE.Vector3(0, 1, 0);
-const AXIS = new THREE.Vector3(1, 0, 1).normalize(); // 플레이어 시선 방향
+const AXIS = new THREE.Vector3(1, 0, 1).normalize();
 const SIDE = new THREE.Vector3().crossVectors(AXIS, UP).normalize();
-const STAGE = new THREE.Vector3(0, 0, 0); // 무대 기준점(자아 군집 중심)
+const STAGE = new THREE.Vector3(0, 0, 0);
 
-// 무대 기준점에서 시선축 s, 좌우 t 만큼 떨어진 바닥 좌표
 function at(s: number, t: number): [number, number, number] {
   const p = STAGE.clone().addScaledVector(AXIS, s).addScaledVector(SIDE, t);
   return [p.x, 0, p.z];
 }
 
-// 플레이어는 자아 군집 뒤(모서리 쪽)에 선다 = 예전 비평가 자리.
 const PLAYER_S = -2.5;
-const CAMERA_POS: [number, number, number] = [
-  at(PLAYER_S, 0)[0],
-  1.6,
-  at(PLAYER_S, 0)[2],
-];
-// 마네킹들이 바라보는 지점 = 플레이어 발밑 (yaw 계산에만 사용)
+const CAMERA_POS: [number, number, number] = [at(PLAYER_S, 0)[0], 1.6, at(PLAYER_S, 0)[2]];
 const FACE: [number, number] = [CAMERA_POS[0], CAMERA_POS[2]];
-
-// 1인칭 초기 시선: 앞-오른쪽 모서리(+AXIS) = 세 자아를 마주 본다. 뒤돌면 비평가.
 const LOOK_YAW0 = Math.PI / 4;
 const LOOK_PITCH0 = -0.08;
 
-// 세 자아: 플레이어 바로 앞(+AXIS)에 완만한 호로 서서 플레이어를 마주 본다.
-// 비평가: 정반대편(−AXIS, 플레이어 등 뒤) 모서리에 홀로 서서 플레이어를 본다.
-//   → 정면을 보면 세 자아만, 뒤돌아야 비평가만 보인다(한 화면에 같이 안 잡힘).
-const SELVES = [
-  { key: 'novelist',    label: '소설가',     pos: at(0.2, -1.1),  seed: 0.0, critic: false, confront: true },
-  { key: 'film',        label: '영화',       pos: at(-0.2, 0.0),  seed: 0.4, critic: false, confront: true },
-  { key: 'interactive', label: '인터랙티브', pos: at(0.2,  1.1),  seed: 0.8, critic: false, confront: true },
-  { key: 'critic',      label: '비평가',     pos: at(-6.9, 0.0),  seed: 0.6, critic: true,  confront: true },
+// ── 마네킹 정의 ─────────────────────────────────────────────
+// Worker: 상업 포폴 (video medium)
+// Media:  개인 미디어 (web + engine)
+// Writer: 글쓰기 (writing)
+// Shadow: 검은 마네킹 — 잠김
+
+type MannequinKey = 'worker' | 'media' | 'writer' | 'shadow';
+
+interface MannequinDef {
+  key: MannequinKey;
+  label: string;
+  sublabel: string;
+  pos: [number, number, number];
+  seed: number;
+  critic: boolean;  // true = 검은 마네킹
+  confront: boolean;
+  // 패널 열릴 때 첫 대사
+  openingLine: string;
+  // 호버 시 짧은 힌트
+  hoverLine: string;
+  // 이 마네킹에 연결된 medium 필터 (projects.ts 기준)
+  mediums: Array<'web' | 'video' | 'writing' | 'engine'>;
+  // 작품별 TMI 대사 맵 (project id → 대사 배열)
+  tmiMap: Record<string, string[]>;
+}
+
+const SELVES: MannequinDef[] = [
+  {
+    key: 'worker',
+    label: 'Worker',
+    sublabel: 'Commercial',
+    pos: at(0.2, -1.1),
+    seed: 0.0,
+    critic: false,
+    confront: true,
+    openingLine: '',
+    hoverLine: '',
+    mediums: ['video'],
+    tmiMap: {
+      'video-work-2': [],
+      'collab-hyunhwi': [],
+    },
+  },
+  {
+    key: 'media',
+    label: 'Media',
+    sublabel: 'Personal Work',
+    pos: at(-0.2, 0.0),
+    seed: 0.4,
+    critic: false,
+    confront: true,
+    openingLine: '',
+    hoverLine: '',
+    mediums: ['web', 'engine'],
+    tmiMap: {
+      'the-etched-mutation': [],
+      'byeori-engine': [],
+    },
+  },
+  {
+    key: 'writer',
+    label: 'Writer',
+    sublabel: 'Text & Writing',
+    pos: at(0.2, 1.1),
+    seed: 0.8,
+    critic: false,
+    confront: true,
+    openingLine: '',
+    hoverLine: '',
+    mediums: ['writing'],
+    tmiMap: {},
+  },
+  {
+    key: 'shadow',
+    label: '.',
+    sublabel: '',
+    pos: at(-6.9, 0.0),
+    seed: 0.6,
+    critic: true,
+    confront: true,
+    openingLine: '',
+    hoverLine: '',
+    mediums: [],
+    tmiMap: {},
+  },
 ];
 
+// ── Mannequin 컴포넌트 ──────────────────────────────────────
 function Mannequin({
-  pos,
-  face,
-  seed = 0,
-  critic = false,
-  confront = false,
+  def,
   onHover,
   onActivate,
 }: {
-  pos: [number, number, number];
-  face: [number, number];
-  seed?: number;
-  critic?: boolean;
-  confront?: boolean;
+  def: MannequinDef;
   onHover?: (v: boolean) => void;
   onActivate?: () => void;
 }) {
   const { scene, animations } = useGLTF(MODEL);
-  // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제 (4개 독립 인스턴스)
   const cloned = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene]);
   const { actions } = useAnimations(animations, cloned);
 
-  // idle 애니메이션 재생 (개체마다 시작 시점을 흩어 동기화를 깸)
   useEffect(() => {
     const action = Object.values(actions)[0];
     if (action) {
       action.reset();
-      action.time = seed * (action.getClip().duration || 1);
+      action.time = def.seed * (action.getClip().duration || 1);
       action.setEffectiveTimeScale(0.9);
       action.play();
     }
-  }, [actions, seed]);
+  }, [actions, def.seed]);
 
-  // 키 정규화(1.7m) + 그림자 + 비평가는 검은 톤
   useEffect(() => {
     const box = new THREE.Box3().setFromObject(cloned);
     const h = box.getSize(new THREE.Vector3()).y;
     if (h > 0) cloned.scale.setScalar(TARGET_HEIGHT / h);
-
     cloned.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) {
         mesh.castShadow = true;
         mesh.receiveShadow = false;
         mesh.frustumCulled = false;
-        if (critic) {
+        if (def.critic) {
           const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
           mat.color = new THREE.Color('#0e0e0e');
           mat.roughness = 0.6;
@@ -109,33 +166,22 @@ function Mannequin({
         }
       }
     });
-  }, [cloned, critic]);
+  }, [cloned, def.critic]);
 
-  // 모델 기본 정면축은 +Z. dir = face - pos (= 플레이어 발밑 방향).
-  // confront=false: 플레이어를 등지고 정면 모서리를 향함(세 자아).
-  // confront=true : 모서리에 서서 플레이어/자아군을 마주 봄(비평가).
-  const dx = face[0] - pos[0];
-  const dz = face[1] - pos[2];
-  const rotY = confront ? Math.atan2(dx, dz) : Math.atan2(-dx, -dz);
+  const dx = FACE[0] - def.pos[0];
+  const dz = FACE[1] - def.pos[2];
+  const rotY = def.confront ? Math.atan2(dx, dz) : Math.atan2(-dx, -dz);
 
   return (
     <group>
-      <primitive object={cloned} position={pos} rotation={[0, rotY, 0]} />
-      {/* 상호작용 프록시 — 몸통을 감싸는 가는 캡슐로 hover 영역을 몸에 밀착
-          (넓은 박스보다 "딱 마네킹에 닿는" 느낌. 스킨드 메시 직접 레이캐스트보다 안정적) */}
+      <primitive object={cloned} position={def.pos} rotation={[0, rotY, 0]} />
       <mesh
-        position={[pos[0], 0.84, pos[2]]}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          onHover?.(true);
-        }}
-        onPointerOut={(e) => {
-          e.stopPropagation();
-          onHover?.(false);
-        }}
+        position={[def.pos[0], 0.84, def.pos[2]]}
+        onPointerOver={(e) => { e.stopPropagation(); onHover?.(true); }}
+        onPointerOut={(e) => { e.stopPropagation(); onHover?.(false); }}
         onClick={(e) => {
           e.stopPropagation();
-          if (e.delta > 6) return; // 드래그(시점 회전)는 클릭으로 치지 않음
+          if (e.delta > 6) return;
           onActivate?.();
         }}
       >
@@ -146,37 +192,32 @@ function Mannequin({
   );
 }
 
+// ── 방 ──────────────────────────────────────────────────────
 function Room() {
   const wall = '#ecebe6';
   const floor = '#e6e4de';
   return (
     <group>
-      {/* 바닥 — 약한 반사로 실사감 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[16, 16]} />
         <meshStandardMaterial color={floor} roughness={0.72} metalness={0} />
       </mesh>
-      {/* 천장 */}
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 4.2, 0]}>
         <planeGeometry args={[16, 16]} />
         <meshStandardMaterial color={wall} roughness={1} metalness={0} />
       </mesh>
-      {/* 뒷벽 */}
       <mesh position={[0, 2.1, -5.5]} receiveShadow>
         <planeGeometry args={[16, 8.4]} />
         <meshStandardMaterial color={wall} roughness={1} metalness={0} />
       </mesh>
-      {/* 앞벽(카메라 뒤) */}
       <mesh position={[0, 2.1, 5.5]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[16, 8.4]} />
         <meshStandardMaterial color={wall} roughness={1} metalness={0} />
       </mesh>
-      {/* 좌벽 */}
       <mesh position={[-5.5, 2.1, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[16, 8.4]} />
         <meshStandardMaterial color={wall} roughness={1} metalness={0} />
       </mesh>
-      {/* 우벽 */}
       <mesh position={[5.5, 2.1, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[16, 8.4]} />
         <meshStandardMaterial color={wall} roughness={1} metalness={0} />
@@ -185,172 +226,344 @@ function Room() {
   );
 }
 
-// 1인칭 시점: 카메라 위치는 초기 좌표에 고정, 드래그로 제자리에서 시점만 회전.
-function LookControls() {
+// ── 1인칭 시점 컨트롤 ───────────────────────────────────────
+function LookControls({ locked }: { locked: boolean }) {
   const { camera, gl } = useThree();
-  const st = useRef({
-    dragging: false,
-    px: 0,
-    py: 0,
-    yaw: LOOK_YAW0,
-    pitch: LOOK_PITCH0,
-  });
+  const st = useRef({ dragging: false, px: 0, py: 0, yaw: LOOK_YAW0, pitch: LOOK_PITCH0 });
 
   useEffect(() => {
+    if (locked) return;
     const dom = gl.domElement;
-    const down = (e: PointerEvent) => {
-      st.current.dragging = true;
-      st.current.px = e.clientX;
-      st.current.py = e.clientY;
-    };
-    const up = () => {
-      st.current.dragging = false;
-    };
+    const down = (e: PointerEvent) => { st.current.dragging = true; st.current.px = e.clientX; st.current.py = e.clientY; };
+    const up = () => { st.current.dragging = false; };
     const move = (e: PointerEvent) => {
       if (!st.current.dragging) return;
-      const dx = e.clientX - st.current.px;
-      const dy = e.clientY - st.current.py;
+      st.current.yaw -= (e.clientX - st.current.px) * 0.003;
+      st.current.pitch = Math.max(-1.2, Math.min(0.9, st.current.pitch - (e.clientY - st.current.py) * 0.003));
       st.current.px = e.clientX;
       st.current.py = e.clientY;
-      st.current.yaw -= dx * 0.003;
-      // 위아래는 과회전 방지로 클램프 (좌우는 360° 자유)
-      st.current.pitch = Math.max(
-        -1.2,
-        Math.min(0.9, st.current.pitch - dy * 0.003),
-      );
     };
     dom.addEventListener('pointerdown', down);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointermove', move);
-    return () => {
-      dom.removeEventListener('pointerdown', down);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointermove', move);
-    };
-  }, [gl]);
+    return () => { dom.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); window.removeEventListener('pointermove', move); };
+  }, [gl, locked]);
 
   useFrame(() => {
     const { yaw, pitch } = st.current;
-    // 몸(위치)은 고정, 시선만 회전
     camera.position.set(CAMERA_POS[0], CAMERA_POS[1], CAMERA_POS[2]);
     const cp = Math.cos(pitch);
-    camera.lookAt(
-      CAMERA_POS[0] + Math.sin(yaw) * cp,
-      CAMERA_POS[1] + Math.sin(pitch),
-      CAMERA_POS[2] + Math.cos(yaw) * cp,
-    );
+    camera.lookAt(CAMERA_POS[0] + Math.sin(yaw) * cp, CAMERA_POS[1] + Math.sin(pitch), CAMERA_POS[2] + Math.cos(yaw) * cp);
   });
 
   return null;
 }
 
+// ── 포트폴리오 패널 ─────────────────────────────────────────
+function PortfolioPanel({
+  def,
+  onClose,
+  onProjectClick,
+  tmiLine,
+}: {
+  def: MannequinDef;
+  onClose: () => void;
+  onProjectClick: (p: Project) => void;
+  tmiLine: string;
+}) {
+  // 이 마네킹에 해당하는 프로젝트 필터링
+  const items = projects.filter((p) => def.mediums.includes(p.medium));
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeProject = items.find((p) => p.id === activeId) ?? null;
+
+  const handleSelect = (p: Project) => {
+    setActiveId(p.id);
+    onProjectClick(p);
+  };
+
+  // YouTube watch URL → embed URL 변환
+  const toEmbed = (url: string): string | null => {
+    const m = url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^&?/]+)/);
+    return m ? `https://www.youtube.com/embed/${m[1]}` : null;
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-30 flex"
+      style={{ background: 'rgba(236,235,230,0.0)' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* 왼쪽 1/3 — 얼빡샷 사이드 */}
+      <div
+        className="relative flex flex-col items-center justify-center flex-shrink-0"
+        style={{ width: '33.333%', background: '#f0eeea' }}
+      >
+        {/* 닫기 */}
+        <button
+          onClick={onClose}
+          className="absolute top-6 left-6 text-[10px] tracking-[0.25em] uppercase text-stone-400 hover:text-stone-700 transition-colors"
+        >
+          [close]
+        </button>
+
+        {/* 마네킹 실루엣 플레이스홀더 */}
+        <div className="flex flex-col items-center gap-5 px-8">
+          <div
+            className="w-28 h-52 rounded-sm"
+            style={{
+              background: 'linear-gradient(180deg, #ccc9c2 0%, #b5b2ab 100%)',
+            }}
+          />
+          <div className="text-center">
+            <p className="text-xs font-semibold tracking-[0.3em] uppercase text-stone-500">
+              {def.label}
+            </p>
+            <p className="text-[10px] tracking-wider text-stone-400 mt-1">
+              {def.sublabel}
+            </p>
+          </div>
+        </div>
+
+        {/* TMI 대사 */}
+        <AnimatePresence mode="wait">
+          {tmiLine && (
+            <motion.p
+              key={tmiLine}
+              className="absolute bottom-10 left-0 right-0 px-8 text-center text-xs text-stone-500 italic leading-relaxed"
+              style={{ fontFamily: "'Times New Roman', 'Nanum Myeongjo', serif" }}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.4 }}
+            >
+              &ldquo;{tmiLine}&rdquo;
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* 오른쪽 2/3 — 포폴 패널 */}
+      <div
+        className="flex flex-col overflow-hidden"
+        style={{ width: '66.667%', background: '#fafaf8' }}
+      >
+        {/* 헤더 */}
+        <div className="px-10 pt-10 pb-6 border-b border-stone-200">
+          <h2 className="text-2xl font-semibold tracking-tight text-stone-800">
+            {def.label}
+          </h2>
+          <p
+            className="text-xs text-stone-400 tracking-wide mt-1 italic"
+            style={{ fontFamily: "'Times New Roman', 'Nanum Myeongjo', serif" }}
+          >
+            {def.openingLine}
+          </p>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* 목록 */}
+          <div className="w-60 flex-shrink-0 overflow-y-auto border-r border-stone-200 py-2">
+            {items.length === 0 && (
+              <p className="px-6 py-8 text-xs text-stone-300 tracking-wider">— empty —</p>
+            )}
+            {items.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => handleSelect(p)}
+                className={`w-full text-left px-6 py-4 border-b border-stone-100 transition-colors ${
+                  activeId === p.id
+                    ? 'bg-stone-100 text-stone-800'
+                    : 'text-stone-500 hover:bg-stone-50 hover:text-stone-700'
+                }`}
+              >
+                <p className="text-xs font-semibold tracking-wide">{p.title}</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">
+                  {p.year} · {mediumLabels[p.medium] ?? p.medium}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {/* 상세 */}
+          <div className="flex-1 overflow-y-auto p-10">
+            <AnimatePresence mode="wait">
+              {activeProject ? (
+                <motion.div
+                  key={activeProject.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  {/* 제목 + 링크 */}
+                  <div className="flex items-start justify-between mb-5 gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-stone-800 leading-snug">
+                        {activeProject.title}
+                      </h3>
+                      <p className="text-[10px] text-stone-400 mt-1">
+                        {activeProject.year} · {mediumLabels[activeProject.medium] ?? activeProject.medium}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      {activeProject.links.map((lk) => (
+                        <a
+                          key={lk.label}
+                          href={lk.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] tracking-[0.2em] uppercase text-stone-400 hover:text-stone-700 border border-stone-300 hover:border-stone-500 px-3 py-1.5 transition-colors"
+                        >
+                          {lk.label} ↗
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 설명 */}
+                  <p className="text-sm text-stone-600 leading-relaxed mb-8 whitespace-pre-line">
+                    {activeProject.description}
+                  </p>
+
+                  {/* 미디어 이미지 */}
+                  {activeProject.media && (
+                    <div className="mb-8">
+                      <img
+                        src={activeProject.media}
+                        alt={activeProject.title}
+                        className="w-full object-cover"
+                        style={{ maxHeight: '260px' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* YouTube 임베드 */}
+                  {activeProject.links.map((lk) => {
+                    const embed = toEmbed(lk.url);
+                    return embed ? (
+                      <div key={lk.label} className="aspect-video w-full bg-stone-100 mb-8">
+                        <iframe
+                          src={embed}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : null;
+                  })}
+
+                  {/* PDF 임베드 */}
+                  {activeProject.links.map((lk) =>
+                    lk.url.endsWith('.pdf') ? (
+                      <div key={lk.label} className="w-full h-96 bg-stone-100 mb-8">
+                        <iframe src={lk.url} className="w-full h-full" />
+                      </div>
+                    ) : null
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center justify-center h-full"
+                >
+                  <p className="text-xs text-stone-300 tracking-[0.3em]">select a work</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── 메인 씬 ─────────────────────────────────────────────────
 export default function QuarrelScene() {
   const [dpr, setDpr] = useState(1.5);
-  const [hovering, setHovering] = useState(false); // 흰 자아 호버 → 커서 확대
-  const [pressing, setPressing] = useState(false); // 흰 자아 클릭 피드백
-  const [shaking, setShaking] = useState(false); // 비평가 클릭 → 커서 흔들림
-  const [subtitle, setSubtitle] = useState(''); // 영화 자막
+  const [hovering, setHovering] = useState(false);
+  const [shaking, setShaking] = useState(false);
+  const [subtitle, setSubtitle] = useState('');
+  const [activeKey, setActiveKey] = useState<MannequinKey | null>(null);
+  const [tmiLine, setTmiLine] = useState('');
   const cursorRef = useRef<HTMLDivElement>(null);
-  const timers = useRef<{ shake?: number; sub?: number; press?: number }>({});
+  const timers = useRef<{ shake?: number; sub?: number }>({});
 
-  // 커스텀 커서가 포인터를 따라다니게 (state 리렌더 없이 ref로 직접)
+  // 커서 추적
   useEffect(() => {
     const move = (e: PointerEvent) => {
-      const el = cursorRef.current;
-      if (el) el.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+      if (cursorRef.current) cursorRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
     };
     window.addEventListener('pointermove', move);
     return () => window.removeEventListener('pointermove', move);
   }, []);
 
-  // 언마운트 시 타이머 정리
-  useEffect(
-    () => () => {
-      window.clearTimeout(timers.current.shake);
-      window.clearTimeout(timers.current.sub);
-      window.clearTimeout(timers.current.press);
-    },
-    [],
-  );
+  useEffect(() => () => {
+    window.clearTimeout(timers.current.shake);
+    window.clearTimeout(timers.current.sub);
+  }, []);
 
-  // 흰 자아 클릭: 클릭 가능 피드백(커서 잠깐 수축) — 추후 방탈출 진입점으로 확장
-  const handleSelf = () => {
-    setPressing(false);
-    requestAnimationFrame(() => requestAnimationFrame(() => setPressing(true)));
-    window.clearTimeout(timers.current.press);
-    timers.current.press = window.setTimeout(() => setPressing(false), 220);
-  };
+  // 흰 마네킹 클릭 → 패널 열기
+  const handleSelf = useCallback((key: MannequinKey) => {
+    const def = SELVES.find((s) => s.key === key)!;
+    setActiveKey(key);
+    setTmiLine(def.openingLine);
+  }, []);
 
-  // 비평가 클릭: 커서 흔들림 + 자막 "아직은 접근 할 수 없어"
-  const handleLocked = () => {
+  // 검은 마네킹 클릭 → 잠김
+  const handleLocked = useCallback(() => {
     setSubtitle('아직은 접근 할 수 없어');
     setShaking(false);
-    // 더블 rAF로 클래스 제거→재부여 → 연속 클릭에도 애니메이션 재시작
     requestAnimationFrame(() => requestAnimationFrame(() => setShaking(true)));
     window.clearTimeout(timers.current.shake);
     timers.current.shake = window.setTimeout(() => setShaking(false), 520);
     window.clearTimeout(timers.current.sub);
     timers.current.sub = window.setTimeout(() => setSubtitle(''), 2800);
-  };
+  }, []);
+
+  // 패널 내 프로젝트 클릭 → TMI 대사
+  const handleProjectClick = useCallback((p: Project) => {
+    if (!activeKey) return;
+    const def = SELVES.find((s) => s.key === activeKey)!;
+    const lines = def.tmiMap[p.id];
+    if (lines && lines.length > 0) {
+      setTmiLine(lines[Math.floor(Math.random() * lines.length)]);
+    }
+  }, [activeKey]);
+
+  const activeDef = SELVES.find((s) => s.key === activeKey) ?? null;
+  const panelOpen = activeKey !== null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: '#ecebe6',
-        touchAction: 'none',
-        cursor: 'none',
-      }}
-    >
+    <div style={{ position: 'fixed', inset: 0, background: '#ecebe6', touchAction: 'none', cursor: 'none' }}>
       <Canvas
         shadows
         dpr={dpr}
         camera={{ position: CAMERA_POS, fov: 42, near: 0.1, far: 100 }}
-        gl={{
-          antialias: true,
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.05,
-        }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
       >
         <color attach="background" args={['#ecebe6']} />
-
-        {/* 모바일 성능: 프레임 떨어지면 dpr 자동 하향 */}
-        <PerformanceMonitor
-          onDecline={() => setDpr(1)}
-          onIncline={() => setDpr(1.5)}
-        />
+        <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(1.5)} />
         <AdaptiveDpr pixelated />
 
         <Suspense fallback={null}>
-          {/* HDRI 환경광 — 반사·앰비언트의 사실감 (배경엔 안 깔고 흰 벽 유지) */}
           <Environment files="/hdri/studio.hdr" />
           <Room />
           {SELVES.map((s) => (
             <Mannequin
               key={s.key}
-              pos={s.pos}
-              face={FACE}
-              seed={s.seed}
-              critic={s.critic}
-              confront={s.confront}
+              def={s}
               onHover={s.critic ? undefined : setHovering}
-              onActivate={s.critic ? handleLocked : handleSelf}
+              onActivate={s.critic ? handleLocked : () => handleSelf(s.key)}
             />
           ))}
-          {/* 발밑 접지 그림자 — 실사감의 핵심, shadowMap보다 저렴 */}
-          <ContactShadows
-            position={[0, 0.01, 0]}
-            opacity={0.55}
-            scale={14}
-            blur={2.6}
-            far={4.5}
-            resolution={1024}
-            color="#000000"
-          />
+          <ContactShadows position={[0, 0.01, 0]} opacity={0.55} scale={14} blur={2.6} far={4.5} resolution={1024} color="#000000" />
         </Suspense>
 
-        {/* 키 라이트 — 부드러운 단일 그림자 (모바일 부담 최소) */}
         <ambientLight intensity={0.35} />
         <directionalLight
           castShadow
@@ -366,97 +579,71 @@ export default function QuarrelScene() {
           shadow-bias={-0.0004}
         />
 
-        <LookControls />
+        <LookControls locked={panelOpen} />
       </Canvas>
 
-      {/* 커스텀 원형 커서 (difference 블렌드로 흰 방·검은 마네킹 모두에서 보임) */}
+      {/* 포트폴리오 패널 */}
+      <AnimatePresence>
+        {panelOpen && activeDef && (
+          <PortfolioPanel
+            key={activeKey!}
+            def={activeDef}
+            onClose={() => { setActiveKey(null); setTmiLine(''); }}
+            onProjectClick={handleProjectClick}
+            tmiLine={tmiLine}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 커스텀 커서 */}
       <div ref={cursorRef} className="q-cursor">
-        <div
-          className={
-            'q-ring' +
-            (hovering ? ' hover' : '') +
-            (pressing ? ' press' : '') +
-            (shaking ? ' shake' : '')
-          }
-        />
+        <div className={'q-ring' + (hovering ? ' hover' : '') + (shaking ? ' shake' : '')} />
       </div>
 
-      {/* 영화 자막 */}
+      {/* 자막 */}
       <div className={'q-subtitle' + (subtitle ? ' show' : '')}>{subtitle}</div>
 
       <style>{`
         .q-cursor {
-          position: fixed;
-          top: 0;
-          left: 0;
-          z-index: 50;
-          pointer-events: none;
-          will-change: transform;
-          display: none; /* 터치 기기에선 숨김(좌상단 잔상 방지) */
+          position: fixed; top: 0; left: 0; z-index: 50;
+          pointer-events: none; will-change: transform; display: none;
         }
-        @media (hover: hover) and (pointer: fine) {
-          .q-cursor {
-            display: block;
-          }
-        }
+        @media (hover: hover) and (pointer: fine) { .q-cursor { display: block; } }
         .q-ring {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 26px;
-          height: 26px;
-          border: 1.5px solid #737373;
-          border-radius: 50%;
-          background: rgba(115, 115, 115, 0);
+          position: absolute; top: 0; left: 0;
+          width: 26px; height: 26px;
+          border: 1.5px solid #737373; border-radius: 50%;
+          background: rgba(115,115,115,0);
           transform: translate(-50%, -50%);
-          transition: width 0.18s ease, height 0.18s ease,
-            background 0.18s ease, border-color 0.18s ease;
+          transition: width 0.18s ease, height 0.18s ease, background 0.18s ease, border-color 0.18s ease;
         }
-        .q-ring.hover {
-          width: 60px;
-          height: 60px;
-          background: rgba(115, 115, 115, 0.14);
-        }
-        .q-ring.press {
-          width: 18px;
-          height: 18px;
-          background: rgba(115, 115, 115, 0.3);
-        }
+        .q-ring.hover { width: 60px; height: 60px; background: rgba(115,115,115,0.14); }
         .q-ring.shake {
-          border-color: #e23b3b;
-          background: rgba(226, 59, 59, 0.2);
-          animation: q-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+          border-color: #e23b3b; background: rgba(226,59,59,0.2);
+          animation: q-shake 0.5s cubic-bezier(0.36,0.07,0.19,0.97);
         }
         @keyframes q-shake {
-          0%   { transform: translate(-50%, -50%) rotate(0); }
-          15%  { transform: translate(calc(-50% - 4px), -50%) rotate(-5deg); }
-          30%  { transform: translate(calc(-50% + 4px), -50%) rotate(5deg); }
-          45%  { transform: translate(calc(-50% - 3px), -50%) rotate(-3deg); }
-          60%  { transform: translate(calc(-50% + 3px), -50%) rotate(3deg); }
-          75%  { transform: translate(calc(-50% - 2px), -50%) rotate(-2deg); }
-          100% { transform: translate(-50%, -50%) rotate(0); }
+          0%   { transform: translate(-50%,-50%) rotate(0); }
+          15%  { transform: translate(calc(-50% - 4px),-50%) rotate(-5deg); }
+          30%  { transform: translate(calc(-50% + 4px),-50%) rotate(5deg); }
+          45%  { transform: translate(calc(-50% - 3px),-50%) rotate(-3deg); }
+          60%  { transform: translate(calc(-50% + 3px),-50%) rotate(3deg); }
+          75%  { transform: translate(calc(-50% - 2px),-50%) rotate(-2deg); }
+          100% { transform: translate(-50%,-50%) rotate(0); }
         }
         .q-subtitle {
-          position: fixed;
-          left: 50%;
-          bottom: 8%;
+          position: fixed; left: 50%; bottom: 8%;
           transform: translateX(-50%) translateY(10px);
-          max-width: 80vw;
-          text-align: center;
+          max-width: 80vw; text-align: center;
           color: #f4f3ef;
           font-family: 'Times New Roman', 'Nanum Myeongjo', serif;
           font-size: clamp(17px, 2.4vw, 27px);
           letter-spacing: 0.06em;
-          text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 2px rgba(0, 0, 0, 0.55);
-          opacity: 0;
-          pointer-events: none;
-          z-index: 60;
+          text-shadow: 0 2px 12px rgba(0,0,0,0.6), 0 0 2px rgba(0,0,0,0.55);
+          opacity: 0; pointer-events: none; z-index: 60;
           transition: opacity 0.5s ease, transform 0.5s ease;
         }
-        .q-subtitle.show {
-          opacity: 1;
-          transform: translateX(-50%) translateY(0);
-        }
+        .q-subtitle.show { opacity: 1; transform: translateX(-50%) translateY(0); }
       `}</style>
     </div>
   );
