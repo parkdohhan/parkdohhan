@@ -62,12 +62,16 @@ function Mannequin({
   seed = 0,
   critic = false,
   confront = false,
+  onHover,
+  onActivate,
 }: {
   pos: [number, number, number];
   face: [number, number];
   seed?: number;
   critic?: boolean;
   confront?: boolean;
+  onHover?: (v: boolean) => void;
+  onActivate?: () => void;
 }) {
   const { scene, animations } = useGLTF(MODEL);
   // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제 (4개 독립 인스턴스)
@@ -114,7 +118,32 @@ function Mannequin({
   const dz = face[1] - pos[2];
   const rotY = confront ? Math.atan2(dx, dz) : Math.atan2(-dx, -dz);
 
-  return <primitive object={cloned} position={pos} rotation={[0, rotY, 0]} />;
+  return (
+    <group>
+      <primitive object={cloned} position={pos} rotation={[0, rotY, 0]} />
+      {/* 상호작용 프록시 — 몸통을 감싸는 가는 캡슐로 hover 영역을 몸에 밀착
+          (넓은 박스보다 "딱 마네킹에 닿는" 느낌. 스킨드 메시 직접 레이캐스트보다 안정적) */}
+      <mesh
+        position={[pos[0], 0.84, pos[2]]}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          onHover?.(true);
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          onHover?.(false);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (e.delta > 6) return; // 드래그(시점 회전)는 클릭으로 치지 않음
+          onActivate?.();
+        }}
+      >
+        <capsuleGeometry args={[0.26, 1.15, 4, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
+  );
 }
 
 function Room() {
@@ -217,6 +246,52 @@ function LookControls() {
 
 export default function QuarrelScene() {
   const [dpr, setDpr] = useState(1.5);
+  const [hovering, setHovering] = useState(false); // 흰 자아 호버 → 커서 확대
+  const [pressing, setPressing] = useState(false); // 흰 자아 클릭 피드백
+  const [shaking, setShaking] = useState(false); // 비평가 클릭 → 커서 흔들림
+  const [subtitle, setSubtitle] = useState(''); // 영화 자막
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const timers = useRef<{ shake?: number; sub?: number; press?: number }>({});
+
+  // 커스텀 커서가 포인터를 따라다니게 (state 리렌더 없이 ref로 직접)
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      const el = cursorRef.current;
+      if (el) el.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+    };
+    window.addEventListener('pointermove', move);
+    return () => window.removeEventListener('pointermove', move);
+  }, []);
+
+  // 언마운트 시 타이머 정리
+  useEffect(
+    () => () => {
+      window.clearTimeout(timers.current.shake);
+      window.clearTimeout(timers.current.sub);
+      window.clearTimeout(timers.current.press);
+    },
+    [],
+  );
+
+  // 흰 자아 클릭: 클릭 가능 피드백(커서 잠깐 수축) — 추후 방탈출 진입점으로 확장
+  const handleSelf = () => {
+    setPressing(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => setPressing(true)));
+    window.clearTimeout(timers.current.press);
+    timers.current.press = window.setTimeout(() => setPressing(false), 220);
+  };
+
+  // 비평가 클릭: 커서 흔들림 + 자막 "아직은 접근 할 수 없어"
+  const handleLocked = () => {
+    setSubtitle('아직은 접근 할 수 없어');
+    setShaking(false);
+    // 더블 rAF로 클래스 제거→재부여 → 연속 클릭에도 애니메이션 재시작
+    requestAnimationFrame(() => requestAnimationFrame(() => setShaking(true)));
+    window.clearTimeout(timers.current.shake);
+    timers.current.shake = window.setTimeout(() => setShaking(false), 520);
+    window.clearTimeout(timers.current.sub);
+    timers.current.sub = window.setTimeout(() => setSubtitle(''), 2800);
+  };
 
   return (
     <div
@@ -225,6 +300,7 @@ export default function QuarrelScene() {
         inset: 0,
         background: '#ecebe6',
         touchAction: 'none',
+        cursor: 'none',
       }}
     >
       <Canvas
@@ -258,6 +334,8 @@ export default function QuarrelScene() {
               seed={s.seed}
               critic={s.critic}
               confront={s.confront}
+              onHover={s.critic ? undefined : setHovering}
+              onActivate={s.critic ? handleLocked : handleSelf}
             />
           ))}
           {/* 발밑 접지 그림자 — 실사감의 핵심, shadowMap보다 저렴 */}
@@ -290,6 +368,96 @@ export default function QuarrelScene() {
 
         <LookControls />
       </Canvas>
+
+      {/* 커스텀 원형 커서 (difference 블렌드로 흰 방·검은 마네킹 모두에서 보임) */}
+      <div ref={cursorRef} className="q-cursor">
+        <div
+          className={
+            'q-ring' +
+            (hovering ? ' hover' : '') +
+            (pressing ? ' press' : '') +
+            (shaking ? ' shake' : '')
+          }
+        />
+      </div>
+
+      {/* 영화 자막 */}
+      <div className={'q-subtitle' + (subtitle ? ' show' : '')}>{subtitle}</div>
+
+      <style>{`
+        .q-cursor {
+          position: fixed;
+          top: 0;
+          left: 0;
+          z-index: 50;
+          pointer-events: none;
+          will-change: transform;
+          display: none; /* 터치 기기에선 숨김(좌상단 잔상 방지) */
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .q-cursor {
+            display: block;
+          }
+        }
+        .q-ring {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 26px;
+          height: 26px;
+          border: 1.5px solid #737373;
+          border-radius: 50%;
+          background: rgba(115, 115, 115, 0);
+          transform: translate(-50%, -50%);
+          transition: width 0.18s ease, height 0.18s ease,
+            background 0.18s ease, border-color 0.18s ease;
+        }
+        .q-ring.hover {
+          width: 60px;
+          height: 60px;
+          background: rgba(115, 115, 115, 0.14);
+        }
+        .q-ring.press {
+          width: 18px;
+          height: 18px;
+          background: rgba(115, 115, 115, 0.3);
+        }
+        .q-ring.shake {
+          border-color: #e23b3b;
+          background: rgba(226, 59, 59, 0.2);
+          animation: q-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+        }
+        @keyframes q-shake {
+          0%   { transform: translate(-50%, -50%) rotate(0); }
+          15%  { transform: translate(calc(-50% - 4px), -50%) rotate(-5deg); }
+          30%  { transform: translate(calc(-50% + 4px), -50%) rotate(5deg); }
+          45%  { transform: translate(calc(-50% - 3px), -50%) rotate(-3deg); }
+          60%  { transform: translate(calc(-50% + 3px), -50%) rotate(3deg); }
+          75%  { transform: translate(calc(-50% - 2px), -50%) rotate(-2deg); }
+          100% { transform: translate(-50%, -50%) rotate(0); }
+        }
+        .q-subtitle {
+          position: fixed;
+          left: 50%;
+          bottom: 8%;
+          transform: translateX(-50%) translateY(10px);
+          max-width: 80vw;
+          text-align: center;
+          color: #f4f3ef;
+          font-family: 'Times New Roman', 'Nanum Myeongjo', serif;
+          font-size: clamp(17px, 2.4vw, 27px);
+          letter-spacing: 0.06em;
+          text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 2px rgba(0, 0, 0, 0.55);
+          opacity: 0;
+          pointer-events: none;
+          z-index: 60;
+          transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .q-subtitle.show {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      `}</style>
     </div>
   );
 }
