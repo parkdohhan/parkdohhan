@@ -18,7 +18,10 @@ import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const MODEL = '/models/ybot.glb';
-useGLTF.preload(MODEL);
+// ybot.glb는 Draco 압축 → 디코더 필요. CDN(gstatic) 대신 자체 호스팅(/draco/)으로
+// 고정해 배포 환경(교차출처/CDN 변수)에서도 안정적으로 로드되게 한다.
+const DRACO_PATH = '/draco/';
+useGLTF.preload(MODEL, DRACO_PATH);
 
 const TARGET_HEIGHT = 1.7; // m
 
@@ -161,7 +164,7 @@ function Mannequin({
   onHover?: (v: boolean) => void;
   onActivate?: () => void;
 }) {
-  const { scene, animations } = useGLTF(MODEL);
+  const { scene, animations } = useGLTF(MODEL, DRACO_PATH);
   // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제 (4개 독립 인스턴스)
   const cloned = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene]);
   const { actions } = useAnimations(animations, cloned);
