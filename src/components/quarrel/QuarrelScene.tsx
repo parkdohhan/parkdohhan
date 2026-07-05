@@ -148,6 +148,18 @@ function FloatingWord({
   );
 }
 
+// 터치(모바일) 기기 감지 — 스킨드 메시 GPU 이슈 회피 분기용.
+// 데스크톱은 항상 false → 기존 렌더 경로 100% 불변.
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      setCoarse(window.matchMedia('(pointer: coarse)').matches);
+    }
+  }, []);
+  return coarse;
+}
+
 function Mannequin({
   pos,
   face,
@@ -170,10 +182,14 @@ function Mannequin({
   const { scene, animations } = useGLTF(MODEL, DRACO_PATH);
   // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제 (4개 독립 인스턴스)
   const cloned = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene]);
-  const { actions } = useAnimations(animations, cloned);
+  const { actions, mixer } = useAnimations(animations, cloned);
 
-  // idle 애니메이션 재생 (개체마다 시작 시점을 흩어 동기화를 깸)
+  // 터치 기기에서만 분기 (데스크톱=false → 아래 두 useEffect 모두 기존과 동일 동작)
+  const coarse = useCoarsePointer();
+
+  // idle 애니메이션 재생 — 데스크톱만 (모바일은 정적 포즈로 구워서 스키닝 회피)
   useEffect(() => {
+    if (coarse) return;
     const action = Object.values(actions)[0];
     if (action) {
       action.reset();
@@ -181,7 +197,53 @@ function Mannequin({
       action.setEffectiveTimeScale(0.9);
       action.play();
     }
-  }, [actions, seed]);
+  }, [actions, seed, coarse]);
+
+  // 모바일 전용: 모바일 GPU는 스킨드 메시(뼈 텍스처 스키닝)를 못 그려 마네킹이
+  // 안 보인다. → idle 한 포즈를 CPU 스키닝으로 구워(bake) 정적 Mesh로 교체해
+  // 스키닝 셰이더를 아예 안 타게 한다. 방(일반 메시)이 보이므로 정적 메시는 반드시 보인다.
+  useEffect(() => {
+    if (!coarse) return;
+    // 자연스러운 자세를 위해 idle 한 프레임을 적용한 뒤 그 포즈로 굽는다
+    const action = Object.values(actions)[0];
+    if (action) {
+      action.reset();
+      action.play();
+      mixer.setTime(seed * (action.getClip().duration || 1) + 0.01);
+    }
+    cloned.updateMatrixWorld(true);
+
+    const skinnedMeshes: THREE.SkinnedMesh[] = [];
+    cloned.traverse((o) => {
+      if ((o as THREE.SkinnedMesh).isSkinnedMesh) {
+        skinnedMeshes.push(o as THREE.SkinnedMesh);
+      }
+    });
+
+    const vtx = new THREE.Vector3();
+    for (const sm of skinnedMeshes) {
+      sm.skeleton.update();
+      const geo = sm.geometry.clone();
+      const posAttr = geo.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < posAttr.count; i++) {
+        vtx.fromBufferAttribute(posAttr, i);
+        sm.applyBoneTransform(i, vtx); // 로컬 정점 → 스키닝된 위치
+        posAttr.setXYZ(i, vtx.x, vtx.y, vtx.z);
+      }
+      posAttr.needsUpdate = true;
+      geo.computeVertexNormals();
+      geo.deleteAttribute('skinIndex');
+      geo.deleteAttribute('skinWeight');
+
+      const staticMesh = new THREE.Mesh(geo, sm.material);
+      staticMesh.name = sm.name;
+      staticMesh.castShadow = true;
+      staticMesh.frustumCulled = false;
+      sm.parent?.add(staticMesh);
+      sm.parent?.remove(sm);
+    }
+    if (action) action.stop();
+  }, [cloned, coarse, actions, mixer, seed]);
 
   // 키 정규화(1.7m) + 그림자 + 비평가는 검은 톤
   useEffect(() => {
