@@ -506,7 +506,6 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
 
 export default function QuarrelScene() {
   const [dpr, setDpr] = useState(1.5);
-  const [diag, setDiag] = useState<string[]>([]); // 임시 모바일 진단 오버레이
   const [hovering, setHovering] = useState(false); // 흰 자아 호버 → 커서 확대
   const [pressing, setPressing] = useState(false); // 흰 자아 클릭 피드백
   const [shaking, setShaking] = useState(false); // 비평가 클릭 → 커서 흔들림
@@ -530,19 +529,6 @@ export default function QuarrelScene() {
     };
     window.addEventListener('pointermove', move);
     return () => window.removeEventListener('pointermove', move);
-  }, []);
-
-  // 임시: 전역 JS/WebGL 에러를 화면 오버레이로 (모바일 원격 디버그용, 확인 후 제거)
-  useEffect(() => {
-    const onErr = (e: ErrorEvent) =>
-      setDiag((d) => [...d, 'ERR: ' + (e.message || String(e.error))]);
-    const onLost = () => setDiag((d) => [...d, '⚠ WEBGL CONTEXT LOST']);
-    window.addEventListener('error', onErr);
-    window.addEventListener('webglcontextlost', onLost, true);
-    return () => {
-      window.removeEventListener('error', onErr);
-      window.removeEventListener('webglcontextlost', onLost, true);
-    };
   }, []);
 
   // 언마운트 시 타이머 정리
@@ -610,26 +596,8 @@ export default function QuarrelScene() {
         camera={{ position: CAMERA_POS, fov: 42, near: 0.1, far: 100 }}
         gl={{
           antialias: true,
-          precision: 'highp',
-          powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.05,
-        }}
-        onCreated={({ gl }) => {
-          const c = gl.capabilities;
-          const ctx = gl.getContext();
-          const dbg = ctx.getExtension('WEBGL_debug_renderer_info');
-          const renderer = dbg
-            ? String(ctx.getParameter(dbg.UNMASKED_RENDERER_WEBGL))
-            : '?';
-          setDiag((d) => [
-            `GPU: ${renderer}`,
-            `precision: ${c.precision}`,
-            `maxVertexTextures: ${c.maxVertexTextures}`,
-            `floatVertexTextures: ${(c as { floatVertexTextures?: boolean }).floatVertexTextures}`,
-            `pixelRatio: ${gl.getPixelRatio()}`,
-            ...d,
-          ]);
         }}
       >
         <color attach="background" args={['#c3b8a7']} />
@@ -690,27 +658,6 @@ export default function QuarrelScene() {
           focus={focused ? { pos: focused.pos, rotY: focused.rotY } : null}
         />
       </Canvas>
-
-      {/* 임시 모바일 진단 오버레이 (원인 확인 후 제거) */}
-      {diag.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            zIndex: 9999,
-            background: 'rgba(0,0,0,0.82)',
-            color: '#3f6',
-            font: '11px/1.5 monospace',
-            padding: '8px 10px',
-            maxWidth: '92vw',
-            whiteSpace: 'pre-wrap',
-            pointerEvents: 'none',
-          }}
-        >
-          {diag.join('\n')}
-        </div>
-      )}
 
       {/* 커스텀 원형 커서 (difference 블렌드) — 패널이 열리면 시스템 커서에 양보 */}
       {!focused && (
