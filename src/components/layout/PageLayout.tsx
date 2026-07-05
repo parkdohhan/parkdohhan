@@ -57,7 +57,7 @@ export function PageLayout({
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 py-4 bg-stone-950/80 backdrop-blur-sm border-t-2 border-stone-700">
         <div className="max-w-6xl mx-auto px-6 flex justify-between items-center text-[10px] font-medium text-stone-500">
-          <span>© 2024</span>
+          <span>© 2026</span>
           <nav className="flex gap-6">
             <Link href="/works" className="hover:text-stone-400 transition-colors">
               Works
