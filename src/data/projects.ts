@@ -17,9 +17,11 @@ export interface Project {
   year: number;
   tags: string[];
   medium: 'web' | 'video' | 'writing' | 'engine';
+  category: 'work' | 'commissions' | 'studies'; // 의도 축: 자기 작품 / 의뢰 / 연구·습작
   description: string;
   links: { label: string; url: string }[];
   media?: string;
+  video?: string; // public 폴더의 mp4 경로 — 모달에서 인라인 재생
 }
 
 const TEM_DESCRIPTION = `The Etched Mutation (TEM) is an interactive web artwork about how memories change when they are shared.
@@ -35,6 +37,7 @@ The project combines interactive narrative design, emotional vector modeling, an
 export const projects: Project[] = [
   {
     id: 'the-etched-mutation',
+    category: 'work',
     title: 'The Etched Mutation',
     year: 2024,
     tags: [],
@@ -47,6 +50,7 @@ export const projects: Project[] = [
   },
   {
     id: 'byeori-engine',
+    category: 'studies',
     title: 'Byeori Engine',
     year: 2024,
     tags: [],
@@ -58,6 +62,7 @@ export const projects: Project[] = [
   },
   {
     id: 'video-work-2',
+    category: 'commissions',
     title: 'Dr. Park Factory Promotional Video',
     year: 2026,
     tags: [],
@@ -68,7 +73,22 @@ export const projects: Project[] = [
     ],
   },
   {
+    id: 'gana-cosmetics',
+    category: 'commissions',
+    title: 'Gana Cosmetics',
+    year: 2026,
+    tags: [],
+    medium: 'web',
+    description:
+      'Commissioned website for Gana Cosmetics. The demo video below walks through the live site.',
+    links: [
+      { label: 'Visit', url: 'https://gana-cosmetics.com' },
+    ],
+    video: '/video/gana-cosmetics.mp4',
+  },
+  {
     id: 'collab-hyunhwi',
+    category: 'work',
     title: 'Sidekick',
     year: 2025,
     tags: [],
@@ -90,3 +110,9 @@ export const mediumLabels: Record<string, string> = {
 export const allTags = Array.from(
   new Set(projects.flatMap((p) => p.tags))
 ).sort();
+
+export const categoryLabels: Record<string, string> = {
+  work: 'Work',
+  commissions: 'Commissions',
+  studies: 'Studies',
+};

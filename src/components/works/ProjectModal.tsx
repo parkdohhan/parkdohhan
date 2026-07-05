@@ -77,6 +77,19 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
 
               {/* Media */}
               {(() => {
+                if (project.video) {
+                  return (
+                    <div className="aspect-video bg-stone-800 mb-8 overflow-hidden relative">
+                      <video
+                        src={project.video}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="absolute inset-0 w-full h-full object-contain"
+                      />
+                    </div>
+                  );
+                }
                 const pdfLink = project.links.find((l) => l.url.toLowerCase().endsWith('.pdf'));
                 if (pdfLink) {
                   return (

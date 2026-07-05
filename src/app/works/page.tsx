@@ -6,14 +6,18 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { ProjectCard } from '@/components/works/ProjectCard';
 import { FilterBar } from '@/components/works/FilterBar';
 import { ProjectModal } from '@/components/works/ProjectModal';
-import { projects, allTags, Project } from '@/data/projects';
+import { projects, allTags, categoryLabels, Project } from '@/data/projects';
 
 function WorksContent() {
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter');
+  const initialCat = searchParams.get('cat');
 
   const [activeMedium, setActiveMedium] = useState<string | null>(
     initialFilter === 'interactive' ? 'web' : null
+  );
+  const [activeCategory, setActiveCategory] = useState<string | null>(
+    initialCat && initialCat in categoryLabels ? initialCat : null
   );
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -21,11 +25,12 @@ function WorksContent() {
   // Filter projects
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
+      if (activeCategory && project.category !== activeCategory) return false;
       if (activeMedium && project.medium !== activeMedium) return false;
       if (activeTag && !project.tags.includes(activeTag)) return false;
       return true;
     });
-  }, [activeMedium, activeTag]);
+  }, [activeCategory, activeMedium, activeTag]);
 
   return (
     <>
@@ -44,9 +49,11 @@ function WorksContent() {
         {/* Filters */}
         <div className="mb-8">
           <FilterBar
+            activeCategory={activeCategory}
             activeMedium={activeMedium}
             activeTag={activeTag}
             allTags={allTags}
+            onCategoryChange={setActiveCategory}
             onMediumChange={setActiveMedium}
             onTagChange={setActiveTag}
           />
