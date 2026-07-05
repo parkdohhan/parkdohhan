@@ -15,7 +15,10 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { projects, mediumLabels } from '@/data/projects';
 import * as THREE from 'three';
-import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+// drei의 GLTFLoader와 '같은' three-stdlib에서 SkeletonUtils를 가져온다.
+// three/examples/jsm 경로로 가져오면 프로덕션 빌드에서 three 인스턴스가 갈려
+// clone 내부의 instanceof SkinnedMesh가 깨지고 → 스킨 메시(마네킹)가 안 보인다.
+import { SkeletonUtils } from 'three-stdlib';
 
 const MODEL = '/models/ybot.glb';
 // ybot.glb는 Draco 압축 → 디코더 필요. CDN(gstatic) 대신 자체 호스팅(/draco/)으로
