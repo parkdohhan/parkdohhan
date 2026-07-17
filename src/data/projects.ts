@@ -22,6 +22,9 @@ export interface Project {
   links: { label: string; url: string }[];
   media?: string;
   video?: string; // public 폴더의 mp4 경로 — 모달에서 인라인 재생
+  // true면 일반 목록(자아 패널 / works / video)에 노출하지 않는다.
+  // 데이터는 남겨두고 나중에 이스터에그로 꺼내 쓰기 위한 플래그.
+  easterEgg?: boolean;
 }
 
 const TEM_DESCRIPTION = `The Etched Mutation (TEM) is an interactive web artwork about how memories change when they are shared.
@@ -97,6 +100,7 @@ export const projects: Project[] = [
     links: [
       { label: 'Watch', url: 'https://youtu.be/MWgWe-qcbjA' },
     ],
+    easterEgg: true, // work 목록에서 숨김 — 추후 이스터에그로 등장시킬 예정
   },
 ];
 

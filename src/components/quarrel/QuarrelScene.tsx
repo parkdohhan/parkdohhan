@@ -522,12 +522,18 @@ function LookControls({ focus }: { focus: FocusTarget | null }) {
     if (s.f > 0 && lf) {
       const dirX = Math.sin(lf.rotY); // 마네킹이 보는 방향 = 얼굴 앞쪽
       const dirZ = Math.cos(lf.rotY);
+      // 넓은 화면: 카메라와 시선을 함께 오른쪽으로 평행이동 → 얼굴이 화면
+      // 왼쪽으로 비켜나 오른쪽에 작업물 패널 자리가 생긴다. (모바일은 중앙 유지
+      // — 패널이 위, 대화창이 아래로 가므로) 오른쪽 벡터 = (dirZ, 0, -dirX).
+      const side = window.innerWidth > 720 ? 0.34 : 0;
+      const offX = dirZ * side;
+      const offZ = -dirX * side;
       _fPos.set(
-        lf.pos[0] + dirX * FOCUS_DIST,
+        lf.pos[0] + dirX * FOCUS_DIST + offX,
         FOCUS_EYE,
-        lf.pos[2] + dirZ * FOCUS_DIST,
+        lf.pos[2] + dirZ * FOCUS_DIST + offZ,
       );
-      _fLook.set(lf.pos[0], FOCUS_FACE_Y, lf.pos[2]);
+      _fLook.set(lf.pos[0] + offX, FOCUS_FACE_Y, lf.pos[2] + offZ);
       _pos.lerp(_fPos, s.f);
       _look.lerp(_fLook, s.f);
     }
@@ -539,12 +545,122 @@ function LookControls({ focus }: { focus: FocusTarget | null }) {
   return null;
 }
 
-// 포커스 시 얼굴 위로 떠오르는 작업물 박스 — 해당 분류의 프로젝트를 세로 스크롤로 본다
-function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
-  const list = projects.filter((p) => p.category === word);
+// ── 자아 페르소나 대화창 ─────────────────────────────
+// 인사말·플레이스홀더만 클라이언트에 둔다 (페르소나 본체는 서버 전용)
+const CHAT_META: Record<string, { greeting: string; placeholder: string }> = {
+  commissions: {
+    greeting: '의뢰 쪽을 맡고 있는 자아입니다. 작업 얘기라면 편하게 물어보세요.',
+    placeholder: 'commissions에게 물어보기…',
+  },
+  work: {
+    greeting: '…왔네. 뭐부터 물어볼래.',
+    placeholder: 'work에게 말 걸기…',
+  },
+  studies: {
+    greeting: '아, 여긴 아직 정리 중인데. 그래도 뭐든 물어봐요.',
+    placeholder: 'studies에게 물어보기…',
+  },
+};
+
+type ChatMsg = { role: 'user' | 'assistant'; content: string };
+
+function PersonaChat({ word }: { word: string }) {
+  const meta = CHAT_META[word] ?? CHAT_META.work;
+  const [msgs, setMsgs] = useState<ChatMsg[]>([
+    { role: 'assistant', content: meta.greeting },
+  ]);
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const logRef = useRef<HTMLDivElement>(null);
+
+  // 새 메시지마다 로그를 맨 아래로
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [msgs]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || busy) return;
+    const next: ChatMsg[] = [...msgs, { role: 'user', content: text }];
+    setMsgs([...next, { role: 'assistant', content: '' }]);
+    setInput('');
+    setBusy(true);
+    try {
+      // trailingSlash: true 설정이라 슬래시 필수 (없으면 308 redirect)
+      const res = await fetch('/api/quarrel-chat/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ self: word, messages: next }),
+      });
+      if (!res.ok || !res.body) throw new Error(String(res.status));
+      // 스트리밍: 토큰이 도착하는 대로 마지막 말풍선에 흘려 넣는다
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let acc = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += dec.decode(value, { stream: true });
+        setMsgs([...next, { role: 'assistant', content: acc }]);
+      }
+      if (!acc.trim()) throw new Error('empty');
+    } catch {
+      setMsgs([
+        ...next,
+        { role: 'assistant', content: '…지금은 말이 안 나오네. 잠시 뒤에 다시.' },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="q-panel-backdrop" onClick={onClose}>
-      <div className="q-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="q-chat-dock" onClick={(e) => e.stopPropagation()}>
+      <div className="q-chat-log" ref={logRef}>
+        {msgs.map((m, i) => (
+          <div
+            key={i}
+            className={
+              'q-bubble ' +
+              (m.role === 'assistant' ? 'ai' : 'me') +
+              (busy && i === msgs.length - 1 && !m.content ? ' typing' : '')
+            }
+          >
+            {m.content}
+          </div>
+        ))}
+      </div>
+      <div className="q-chat-row">
+        <input
+          className="q-chat-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            // 한글 IME 조합 중 Enter는 무시 (조합 확정 Enter로 이중 전송 방지)
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) send();
+          }}
+          placeholder={meta.placeholder}
+          maxLength={500}
+        />
+        <button
+          className="q-chat-send"
+          onClick={send}
+          disabled={busy || !input.trim()}
+        >
+          전송
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 포커스 시: 얼굴은 왼쪽, 오른쪽에 작업물 패널, 하단에 자아와의 대화창
+function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
+  const list = projects.filter((p) => p.category === word && !p.easterEgg);
+  return (
+    <div className="q-focus-layer" onClick={onClose}>
+      <div className="q-side-panel" onClick={(e) => e.stopPropagation()}>
         <button className="q-panel-close" onClick={onClose} aria-label="close">
           ×
         </button>
@@ -594,6 +710,7 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
         ))}
         {list.length === 0 && <p className="q-work-desc">비어 있음.</p>}
       </div>
+      <PersonaChat word={word} />
     </div>
   );
 }
@@ -864,39 +981,138 @@ export default function QuarrelScene() {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
         }
-        /* ── 작업물 패널 ─────────────────────────────── */
-        .q-panel-backdrop {
+        /* ── 포커스 레이어: 우측 작업물 패널 + 하단 대화창 ── */
+        .q-focus-layer {
           position: fixed;
           inset: 0;
           z-index: 70;
-          background: rgba(20, 18, 15, 0.14);
           cursor: auto;
-          animation: q-fade-in 0.4s ease 0.35s both;
         }
         @keyframes q-fade-in {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
-        /* 카메라가 얼굴에 다가간 뒤(0.45s 지연) 떠오른다 */
-        .q-panel {
+        /* 카메라가 얼굴에 다가간 뒤(0.4s 지연) 오른쪽에서 미끄러져 들어온다 */
+        .q-side-panel {
           position: absolute;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%);
-          width: min(680px, 90vw);
-          max-height: 78vh;
+          top: 14px;
+          right: 14px;
+          bottom: 14px;
+          width: min(400px, 44vw);
           overflow-y: auto;
           touch-action: pan-y;
           background: rgba(246, 244, 238, 0.97);
           color: #2b2a27;
           border: 1px solid rgba(43, 42, 39, 0.25);
           box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
-          padding: clamp(24px, 4vw, 48px);
-          animation: q-panel-in 0.6s cubic-bezier(0.22, 0.9, 0.3, 1) 0.45s both;
+          padding: clamp(20px, 2.6vw, 36px);
+          animation: q-slide-in 0.55s cubic-bezier(0.22, 0.9, 0.3, 1) 0.4s both;
         }
-        @keyframes q-panel-in {
-          from { opacity: 0; transform: translate(-50%, -46%); }
-          to   { opacity: 1; transform: translate(-50%, -50%); }
+        @keyframes q-slide-in {
+          from { opacity: 0; transform: translateX(26px); }
+          to   { opacity: 1; transform: none; }
+        }
+        /* ── 하단 대화창 (얼굴 아래) ── */
+        .q-chat-dock {
+          position: absolute;
+          left: 14px;
+          bottom: 14px;
+          width: min(520px, calc(100vw - min(400px, 44vw) - 56px));
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          animation: q-fade-in 0.4s ease 0.6s both;
+        }
+        .q-chat-log {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          max-height: 34vh;
+          overflow-y: auto;
+          padding: 4px;
+          touch-action: pan-y;
+        }
+        .q-bubble {
+          max-width: 86%;
+          padding: 0.5em 0.8em;
+          border-radius: 6px;
+          font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo',
+            'Noto Sans KR', sans-serif;
+          font-size: 14px;
+          line-height: 1.55;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+        .q-bubble.ai {
+          align-self: flex-start;
+          background: rgba(0, 0, 0, 0.72);
+          color: #fff;
+        }
+        .q-bubble.me {
+          align-self: flex-end;
+          background: rgba(246, 244, 238, 0.95);
+          color: #2b2a27;
+          border: 1px solid rgba(43, 42, 39, 0.2);
+        }
+        .q-bubble.typing::after {
+          content: '…';
+          animation: q-blink 1s steps(1) infinite;
+        }
+        @keyframes q-blink {
+          50% { opacity: 0.2; }
+        }
+        .q-chat-row {
+          display: flex;
+          gap: 8px;
+        }
+        .q-chat-input {
+          flex: 1;
+          min-width: 0;
+          padding: 0.7em 0.9em;
+          border-radius: 6px;
+          border: 1px solid rgba(43, 42, 39, 0.35);
+          background: rgba(246, 244, 238, 0.96);
+          color: #2b2a27;
+          font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo',
+            'Noto Sans KR', sans-serif;
+          font-size: 14px;
+          outline: none;
+        }
+        .q-chat-input:focus {
+          border-color: rgba(43, 42, 39, 0.7);
+        }
+        .q-chat-send {
+          padding: 0 18px;
+          border: none;
+          border-radius: 6px;
+          background: #2b2a27;
+          color: #f4f2ec;
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .q-chat-send:disabled {
+          opacity: 0.45;
+          cursor: default;
+        }
+        /* 모바일: 패널은 위쪽 시트, 대화창은 아래 전체 폭 */
+        @media (max-width: 720px) {
+          .q-side-panel {
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: auto;
+            width: auto;
+            max-height: 44vh;
+          }
+          .q-chat-dock {
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            width: auto;
+          }
+          .q-chat-log { max-height: 26vh; }
         }
         .q-panel-close {
           position: sticky;

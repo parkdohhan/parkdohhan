@@ -25,6 +25,7 @@ function WorksContent() {
   // Filter projects
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
+      if (project.easterEgg) return false; // 이스터에그용 — 일반 목록엔 노출 안 함
       if (activeCategory && project.category !== activeCategory) return false;
       if (activeMedium && project.medium !== activeMedium) return false;
       if (activeTag && !project.tags.includes(activeTag)) return false;

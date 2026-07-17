@@ -6,7 +6,7 @@ import { projects } from '@/data/projects';
 import { ExternalLink, Play } from 'lucide-react';
 
 export default function VideoPage() {
-  const videoProjects = projects.filter((p) => p.medium === 'video');
+  const videoProjects = projects.filter((p) => p.medium === 'video' && !p.easterEgg);
 
   return (
     <PageLayout title="Video">
