@@ -20,11 +20,17 @@ import * as THREE from 'three';
 // clone 내부의 instanceof SkinnedMesh가 깨지고 → 스킨 메시(마네킹)가 안 보인다.
 import { SkeletonUtils } from 'three-stdlib';
 
-const MODEL = '/models/ybot.glb';
+// 흰 자아 모델 — 기존 ybot.glb는 지오메트리 바운딩과 스켈레톤 스케일이 어긋나
+// (Armature 0.01 + bbox 6.3배 불일치) 정규화가 깨지므로, 비평가와 동일한
+// 파이프라인(FBX2glTF + gltf-transform draco)으로 원본 FBX에서 재변환한 모델을 쓴다.
+const MODEL = '/models/ybot-standing.glb';
 // ybot.glb는 Draco 압축 → 디코더 필요. CDN(gstatic) 대신 자체 호스팅(/draco/)으로
 // 고정해 배포 환경(교차출처/CDN 변수)에서도 안정적으로 로드되게 한다.
 const DRACO_PATH = '/draco/';
 useGLTF.preload(MODEL, DRACO_PATH);
+// 비평가 전용 모델 — Mixamo Sitting Idle (마네킹/Sitting Idle.fbx → GLB 변환·Draco 압축)
+const CRITIC_MODEL = '/models/critic-sitting.glb';
+useGLTF.preload(CRITIC_MODEL, DRACO_PATH);
 
 const TARGET_HEIGHT = 1.7; // m
 
@@ -150,13 +156,14 @@ function FloatingWord({
 
 // 터치(모바일) 기기 감지 — 스킨드 메시 GPU 이슈 회피 분기용.
 // 데스크톱은 항상 false → 기존 렌더 경로 100% 불변.
+// (이 씬은 ssr:false로만 마운트되므로 초기값에서 바로 matchMedia를 읽어도 안전)
 function useCoarsePointer(): boolean {
-  const [coarse, setCoarse] = useState(false);
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      setCoarse(window.matchMedia('(pointer: coarse)').matches);
-    }
-  }, []);
+  const [coarse] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      !!window.matchMedia &&
+      window.matchMedia('(pointer: coarse)').matches,
+  );
   return coarse;
 }
 
@@ -179,9 +186,32 @@ function Mannequin({
   onHover?: (v: boolean) => void;
   onActivate?: () => void;
 }) {
-  const { scene, animations } = useGLTF(MODEL, DRACO_PATH);
+  // 비평가는 앉은 자세(Sitting Idle) 전용 모델을 쓴다
+  const { scene, animations } = useGLTF(
+    critic ? CRITIC_MODEL : MODEL,
+    DRACO_PATH,
+  );
   // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제 (4개 독립 인스턴스)
-  const cloned = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene]);
+  // 정규화용 키는 '지오메트리(바인드 포즈) bbox × 노드 행렬'로 잰다.
+  // Box3.setFromObject는 SkinnedMesh에서 본 행렬 기반 특수 바운딩을 타는데,
+  // 본이 갱신되기 전엔 붕괴된 값(≈0.28m)이 나와 6배 거인 스케일 버그가 생겼다.
+  // 지오메트리 bbox는 포즈·마운트·bake 순서와 무관하게 항상 T자 키를 준다.
+  const cloned = useMemo(() => {
+    const c = SkeletonUtils.clone(scene) as THREE.Group;
+    c.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    const tmp = new THREE.Box3();
+    c.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.geometry) {
+        if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+        tmp.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld);
+        box.union(tmp);
+      }
+    });
+    c.userData.bindHeight = box.getSize(new THREE.Vector3()).y;
+    return c;
+  }, [scene]);
   const { actions, mixer } = useAnimations(animations, cloned);
 
   // 터치 기기에서만 분기 (데스크톱=false → 아래 두 useEffect 모두 기존과 동일 동작)
@@ -247,8 +277,8 @@ function Mannequin({
 
   // 키 정규화(1.7m) + 그림자 + 비평가는 검은 톤
   useEffect(() => {
-    const box = new THREE.Box3().setFromObject(cloned);
-    const h = box.getSize(new THREE.Vector3()).y;
+    // 클론 직후 재둔 바인드 포즈 키 사용 (bake 이후 bbox는 포즈에 따라 달라짐)
+    const h = (cloned.userData.bindHeight as number) || 0;
     if (h > 0) cloned.scale.setScalar(TARGET_HEIGHT / h);
 
     cloned.traverse((o) => {
@@ -257,12 +287,14 @@ function Mannequin({
         mesh.castShadow = true;
         mesh.receiveShadow = false;
         mesh.frustumCulled = false;
-        if (critic) {
-          const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
-          mat.color = new THREE.Color('#0e0e0e');
-          mat.roughness = 0.6;
-          mesh.material = mat;
-        }
+        // 변환본은 Mixamo 원본 텍스처(살구색)를 갖고 있어 항상 오버라이드한다:
+        // 흰 자아 = 밝은 무채색, 비평가 = 무광 검정
+        const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
+        mat.map = null;
+        mat.color = new THREE.Color(critic ? '#0e0e0e' : '#eaeaea');
+        mat.roughness = critic ? 0.6 : 0.4;
+        mat.metalness = 0;
+        mesh.material = mat;
       }
     });
   }, [cloned, critic]);
@@ -577,6 +609,7 @@ export default function QuarrelScene() {
   >(null); // 클릭된 자아 — 얼굴 줌 + 작업물 패널
   const router = useRouter();
   const cursorRef = useRef<HTMLDivElement>(null);
+  const criticInvited = useRef(false); // 언락 후 첫 클릭(초대) 여부 — 두 번째 클릭에 입장
   const timers = useRef<{
     shake?: number;
     sub?: number;
@@ -626,10 +659,18 @@ export default function QuarrelScene() {
     setFocused({ word: self.word, pos: self.pos, rotY });
   };
 
-  // 비평가 클릭: 세 분류를 모두 방문했으면 비평가 페이지로, 아니면 거부 연출
+  // 비평가 클릭: 잠김 = 거부 연출 / 언락 첫 클릭 = 초대 자막 / 두 번째 클릭 = 입장
+  // (언락 직후 바로 이동하면 빈 화면 전환이 버그처럼 읽혀서 한 박자 둔다)
   const handleLocked = () => {
     if (criticUnlocked()) {
-      router.push(CRITIC_DEST);
+      if (criticInvited.current) {
+        router.push(CRITIC_DEST);
+        return;
+      }
+      criticInvited.current = true;
+      setSubtitle('…이제 들어와도 돼');
+      window.clearTimeout(timers.current.sub);
+      timers.current.sub = window.setTimeout(() => setSubtitle(''), 2800);
       return;
     }
     setSubtitle('아직은 접근 할 수 없어');
