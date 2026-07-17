@@ -64,6 +64,32 @@ export const projects: Project[] = [
     ],
   },
   {
+    id: 'tem-system-paper',
+    category: 'studies',
+    title: '상호작용 서사에서의 감정 궤적 이탈 측정',
+    year: 2026,
+    tags: [],
+    medium: 'writing',
+    description:
+      'Measuring Emotional Trajectory Divergence in Interactive Narrative: The Etched Mutation System and Its Metrics.\n\n감정 궤적을 상호작용 서사의 일차 차원으로 두는 시스템 TEM과, 궤적 이탈을 drift(방향 이탈)·fixation(단일점 수렴)으로 분리 측정하는 오염 벡터, 실시간 정렬도(alignment) 메트릭을 제시한다. 193건의 페르소나 시뮬레이션 플레이로 메트릭의 내부 타당성을 시범 검증. Working Draft v0.3.',
+    links: [
+      { label: 'PDF', url: '/papers/tem-system-paper.pdf' },
+    ],
+  },
+  {
+    id: 'persona-sim-paper',
+    category: 'studies',
+    title: '감정형 인터랙티브 서사를 위한 시뮬레이션 독자',
+    year: 2026,
+    tags: [],
+    medium: 'writing',
+    description:
+      'Simulated Readers for Affective Interactive Narrative: Pre-Validation through Stratified Sampling of Empirical Personality Distributions.\n\n페르소나의 성격을 LLM이 상상하는 대신 실제 인간 307,313명의 Big Five 분포에서 층화 표집해 mode collapse를 회피하는 시뮬레이션 독자 파이프라인. 성격이 정렬도를 예측하고(r = 0.55–0.63), LLM 독자의 과공명 천장 편향이라는 한계까지 함께 실측한 탐색적 계측기. Working Draft v0.1.',
+    links: [
+      { label: 'PDF', url: '/papers/persona-sim-paper.pdf' },
+    ],
+  },
+  {
     id: 'video-work-2',
     category: 'commissions',
     title: 'Dr. Park Factory Promotional Video',
