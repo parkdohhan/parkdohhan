@@ -983,6 +983,8 @@ export default function QuarrelScene() {
         }
         /* ── 포커스 레이어: 우측 작업물 패널 + 하단 대화창 ── */
         .q-focus-layer {
+          /* 작업물 패널 폭 — 화면의 40%, 큰 모니터에서도 존재감 있게 */
+          --qp-w: clamp(420px, 40vw, 900px);
           position: fixed;
           inset: 0;
           z-index: 70;
@@ -995,29 +997,30 @@ export default function QuarrelScene() {
         /* 카메라가 얼굴에 다가간 뒤(0.4s 지연) 오른쪽에서 미끄러져 들어온다 */
         .q-side-panel {
           position: absolute;
-          top: 14px;
-          right: 14px;
-          bottom: 14px;
-          width: min(400px, 44vw);
+          top: 0;
+          right: 0;
+          bottom: 0;
+          width: var(--qp-w);
           overflow-y: auto;
           touch-action: pan-y;
           background: rgba(246, 244, 238, 0.97);
           color: #2b2a27;
-          border: 1px solid rgba(43, 42, 39, 0.25);
-          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
-          padding: clamp(20px, 2.6vw, 36px);
+          border-left: 1px solid rgba(43, 42, 39, 0.25);
+          box-shadow: -20px 0 60px rgba(0, 0, 0, 0.28);
+          padding: clamp(28px, 3vw, 56px);
           animation: q-slide-in 0.55s cubic-bezier(0.22, 0.9, 0.3, 1) 0.4s both;
         }
         @keyframes q-slide-in {
           from { opacity: 0; transform: translateX(26px); }
           to   { opacity: 1; transform: none; }
         }
-        /* ── 하단 대화창 (얼굴 아래) ── */
+        /* ── 하단 대화창 — 남은 영역(얼굴 쪽)의 가운데 아래, 게임 대화창처럼 ── */
         .q-chat-dock {
           position: absolute;
-          left: 14px;
-          bottom: 14px;
-          width: min(520px, calc(100vw - min(400px, 44vw) - 56px));
+          left: calc((100vw - var(--qp-w)) / 2);
+          transform: translateX(-50%);
+          bottom: 20px;
+          width: min(680px, calc(100vw - var(--qp-w) - 48px));
           display: flex;
           flex-direction: column;
           gap: 8px;
@@ -1105,12 +1108,15 @@ export default function QuarrelScene() {
             bottom: auto;
             width: auto;
             max-height: 44vh;
+            border-left: none;
+            padding: 20px;
           }
           .q-chat-dock {
             left: 8px;
             right: 8px;
             bottom: 8px;
             width: auto;
+            transform: none;
           }
           .q-chat-log { max-height: 26vh; }
         }
@@ -1131,10 +1137,10 @@ export default function QuarrelScene() {
         .q-panel-close:hover { color: #2b2a27; }
         .q-panel-word {
           font-family: 'Times New Roman', 'Nanum Myeongjo', serif;
-          font-size: clamp(22px, 3vw, 30px);
+          font-size: clamp(26px, 2.6vw, 42px);
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          margin: 0 0 8px;
+          margin: 0 0 10px;
         }
         .q-work {
           padding: 28px 0;
@@ -1151,9 +1157,9 @@ export default function QuarrelScene() {
         }
         .q-work-title {
           font-family: 'Times New Roman', 'Nanum Myeongjo', serif;
-          font-size: clamp(18px, 2.4vw, 24px);
+          font-size: clamp(20px, 2vw, 32px);
           font-weight: 600;
-          margin: 0 0 14px;
+          margin: 0 0 16px;
         }
         .q-work-media {
           display: block;
@@ -1170,7 +1176,7 @@ export default function QuarrelScene() {
           background: #d8d3c7;
         }
         .q-work-desc {
-          font-size: 14px;
+          font-size: 15px;
           line-height: 1.75;
           white-space: pre-line;
           color: #46433c;
