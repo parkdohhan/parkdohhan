@@ -11,7 +11,6 @@ import {
   Text,
 } from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { projects, mediumLabels } from '@/data/projects';
 import * as THREE from 'three';
@@ -70,13 +69,13 @@ const SELVES = [
   { key: 'novelist',    label: '소설가',     word: 'commissions', pos: at(0.2, -1.1), seed: 0.0, critic: false, confront: true },
   { key: 'film',        label: '영화',       word: 'work',        pos: at(-0.2, 0.0), seed: 0.4, critic: false, confront: true },
   { key: 'interactive', label: '인터랙티브', word: 'studies',     pos: at(0.2,  1.1), seed: 0.8, critic: false, confront: true },
-  { key: 'critic',      label: '비평가',     word: '',            pos: at(-6.9, 0.0), seed: 0.6, critic: true,  confront: true },
+  // 비평가: word는 페르소나 키로만 쓰고, 머리 위 라벨은 숨긴다(hideWord)
+  { key: 'critic',      label: '비평가',     word: 'critic',      pos: at(-6.9, 0.0), seed: 0.6, critic: true,  confront: true, hideWord: true },
 ];
 
-// 비평가 언락 조건: 세 분류를 모두 '방문'해야 한다(방문 기록은 localStorage에 저장).
-const REQUIRED_VISITS = ['commissions', 'work', 'studies'] as const;
+// 방문 기록(localStorage) — 비평가는 이제 잠금 없이 바로 대화하므로 언락 게이트는
+// 없앴지만, 어느 자아를 만났는지 기록은 남겨둔다(추후 연출에 쓸 수 있게).
 const VISIT_KEY = 'quarrel:visited';
-const CRITIC_DEST = '/critic'; // 언락 후 이동할 비평가 전용 페이지
 
 function readVisited(): Set<string> {
   try {
@@ -93,10 +92,6 @@ function markVisited(word: string) {
     s.add(word);
     localStorage.setItem(VISIT_KEY, JSON.stringify([...s]));
   } catch {}
-}
-function criticUnlocked(): boolean {
-  const s = readVisited();
-  return REQUIRED_VISITS.every((w) => s.has(w));
 }
 
 // 머리 위 분류명 라벨: 마네킹과 같은 방향(플레이어 쪽)을 보며, 살짝 떠서 오르내린다
@@ -556,6 +551,10 @@ const CHAT_META: Record<string, { greeting: string; placeholder: string }> = {
     greeting: '…왔네. 뭐부터 물어볼래.',
     placeholder: 'work에게 말 걸기…',
   },
+  critic: {
+    greeting: '왔네.',
+    placeholder: '비평가에게 말 걸기…',
+  },
   studies: {
     greeting: '아, 여긴 아직 정리 중인데. 그래도 뭐든 물어봐요.',
     placeholder: 'studies에게 물어보기…',
@@ -658,6 +657,14 @@ function PersonaChat({ word }: { word: string }) {
 // 포커스 시: 얼굴은 왼쪽, 오른쪽에 작업물 패널, 하단에 자아와의 대화창
 function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
   const list = projects.filter((p) => p.category === word && !p.easterEgg);
+  // 비평가는 작품이 없다 — 작업물 패널 없이 대화창만 띄운다(전체 폭 사용)
+  if (word === 'critic') {
+    return (
+      <div className="q-focus-layer q-focus-solo" onClick={onClose}>
+        <PersonaChat word={word} />
+      </div>
+    );
+  }
   return (
     <div className="q-focus-layer" onClick={onClose}>
       <div className="q-side-panel" onClick={(e) => e.stopPropagation()}>
@@ -719,19 +726,11 @@ export default function QuarrelScene() {
   const [dpr, setDpr] = useState(1.5);
   const [hovering, setHovering] = useState(false); // 흰 자아 호버 → 커서 확대
   const [pressing, setPressing] = useState(false); // 흰 자아 클릭 피드백
-  const [shaking, setShaking] = useState(false); // 비평가 클릭 → 커서 흔들림
-  const [subtitle, setSubtitle] = useState(''); // 영화 자막
   const [focused, setFocused] = useState<
     null | { word: string; pos: [number, number, number]; rotY: number }
   >(null); // 클릭된 자아 — 얼굴 줌 + 작업물 패널
-  const router = useRouter();
   const cursorRef = useRef<HTMLDivElement>(null);
-  const criticInvited = useRef(false); // 언락 후 첫 클릭(초대) 여부 — 두 번째 클릭에 입장
-  const timers = useRef<{
-    shake?: number;
-    sub?: number;
-    press?: number;
-  }>({});
+  const timers = useRef<{ press?: number }>({});
 
   // 커스텀 커서가 포인터를 따라다니게 (state 리렌더 없이 ref로 직접)
   useEffect(() => {
@@ -746,8 +745,6 @@ export default function QuarrelScene() {
   // 언마운트 시 타이머 정리
   useEffect(
     () => () => {
-      window.clearTimeout(timers.current.shake);
-      window.clearTimeout(timers.current.sub);
       window.clearTimeout(timers.current.press);
     },
     [],
@@ -763,41 +760,18 @@ export default function QuarrelScene() {
     return () => window.removeEventListener('keydown', onKey);
   }, [focused]);
 
-  // 흰 자아 클릭: 커서 수축 피드백 → 얼굴 정면으로 카메라 접근 + 작업물 패널
+  // 마네킹 클릭(흰 자아·비평가 공통): 커서 수축 피드백 → 얼굴 정면으로 카메라
+  // 접근 + 대화창(흰 자아는 작업물 패널도 함께). 비평가도 잠금 없이 바로 대화한다.
   const handleSelf = (self: (typeof SELVES)[number]) => {
     setPressing(false);
     requestAnimationFrame(() => requestAnimationFrame(() => setPressing(true)));
     window.clearTimeout(timers.current.press);
     timers.current.press = window.setTimeout(() => setPressing(false), 220);
     setHovering(false);
-    markVisited(self.word); // 비평가 언락용 방문 기록
+    markVisited(self.word); // 방문 기록(분류별 진행 상태)
     // 마네킹이 보는 방향(플레이어 쪽) = 얼굴 정면. Mannequin의 rotY와 같은 식.
     const rotY = Math.atan2(FACE[0] - self.pos[0], FACE[1] - self.pos[2]);
     setFocused({ word: self.word, pos: self.pos, rotY });
-  };
-
-  // 비평가 클릭: 잠김 = 거부 연출 / 언락 첫 클릭 = 초대 자막 / 두 번째 클릭 = 입장
-  // (언락 직후 바로 이동하면 빈 화면 전환이 버그처럼 읽혀서 한 박자 둔다)
-  const handleLocked = () => {
-    if (criticUnlocked()) {
-      if (criticInvited.current) {
-        router.push(CRITIC_DEST);
-        return;
-      }
-      criticInvited.current = true;
-      setSubtitle('…이제 들어와도 돼');
-      window.clearTimeout(timers.current.sub);
-      timers.current.sub = window.setTimeout(() => setSubtitle(''), 2800);
-      return;
-    }
-    setSubtitle('아직은 접근 할 수 없어');
-    setShaking(false);
-    // 더블 rAF로 클래스 제거→재부여 → 연속 클릭에도 애니메이션 재시작
-    requestAnimationFrame(() => requestAnimationFrame(() => setShaking(true)));
-    window.clearTimeout(timers.current.shake);
-    timers.current.shake = window.setTimeout(() => setShaking(false), 520);
-    window.clearTimeout(timers.current.sub);
-    timers.current.sub = window.setTimeout(() => setSubtitle(''), 2800);
   };
 
   return (
@@ -838,12 +812,12 @@ export default function QuarrelScene() {
               key={s.key}
               pos={s.pos}
               face={FACE}
-              word={s.word}
+              word={s.hideWord ? '' : s.word}
               seed={s.seed}
               critic={s.critic}
               confront={s.confront}
-              onHover={s.critic ? undefined : setHovering}
-              onActivate={s.critic ? handleLocked : () => handleSelf(s)}
+              onHover={setHovering}
+              onActivate={() => handleSelf(s)}
             />
           ))}
           {/* 발밑 접지 그림자 — 실사감의 핵심, shadowMap보다 저렴 */}
@@ -886,17 +860,13 @@ export default function QuarrelScene() {
             className={
               'q-ring' +
               (hovering ? ' hover' : '') +
-              (pressing ? ' press' : '') +
-              (shaking ? ' shake' : '')
+              (pressing ? ' press' : '')
             }
           />
         </div>
       )}
 
-      {/* 영화 자막 */}
-      <div className={'q-subtitle' + (subtitle ? ' show' : '')}>{subtitle}</div>
-
-      {/* 얼굴 줌 위로 떠오르는 작업물 박스 */}
+      {/* 얼굴 줌 + 대화창 (흰 자아는 작업물 패널도 함께) */}
       {focused && (
         <WorkPanel word={focused.word} onClose={() => setFocused(null)} />
       )}
@@ -985,6 +955,10 @@ export default function QuarrelScene() {
         .q-focus-layer {
           /* 작업물 패널 폭 — 화면의 40%, 큰 모니터에서도 존재감 있게 */
           --qp-w: clamp(420px, 40vw, 900px);
+        }
+        /* 비평가: 작업물 패널이 없으므로 대화창이 화면 전체 기준 중앙에 온다 */
+        .q-focus-layer.q-focus-solo {
+          --qp-w: 0px;
           position: fixed;
           inset: 0;
           z-index: 70;

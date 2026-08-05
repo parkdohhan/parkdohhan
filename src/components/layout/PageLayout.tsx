@@ -27,8 +27,8 @@ export function PageLayout({
         }}
       />
 
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-stone-950/80 backdrop-blur-sm border-b-2 border-stone-700">
+      {/* Header — 최상단 연락처 바(34px) 아래에 붙는다 */}
+      <header className="fixed top-[34px] left-0 right-0 z-40 bg-stone-950/80 backdrop-blur-sm border-b-2 border-stone-700">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link
             href={backHref}
@@ -46,7 +46,7 @@ export function PageLayout({
 
       {/* Content */}
       <motion.main
-        className="pt-20 pb-16"
+        className="pt-[104px] pb-16"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ContactBar } from "@/components/layout/ContactBar";
 
 export const metadata: Metadata = {
   title: "Portfolio | Pathology",
@@ -14,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="font-mono antialiased bg-stone-950 text-stone-300">
+        <ContactBar />
         {children}
       </body>
     </html>
