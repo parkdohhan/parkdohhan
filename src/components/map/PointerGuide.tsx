@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Keyboard, MousePointer2 } from 'lucide-react';
+import { useStrings } from '@/i18n/LanguageContext';
 
 interface PointerGuideProps {
   pointerLeft: boolean;
@@ -15,6 +16,7 @@ export function PointerGuide({
   pointerRight,
   emphasize,
 }: PointerGuideProps) {
+  const t = useStrings();
   return (
     <div
       className="fixed inset-0 z-20 pointer-events-none hidden md:block"
@@ -91,11 +93,11 @@ export function PointerGuide({
                   className="w-3.5 h-3.5 shrink-0 text-amber-500/80"
                   aria-hidden
                 />
-                <span>가장자리로 이동</span>
+                <span>{t.guideEdgeMove}</span>
               </span>
             </div>
             <p className="mt-2 text-center text-[9px] text-stone-600 tracking-wide">
-              화면 왼쪽 또는 오른쪽 끝으로 마우스를 옮기면 그 방향으로 걸어요
+              {t.guideEdgeDetail}
             </p>
           </div>
         </>
@@ -103,7 +105,9 @@ export function PointerGuide({
 
       {!emphasize && (
         <p className="absolute bottom-28 left-1/2 -translate-x-1/2 max-w-md px-4 text-center text-[9px] text-stone-600/90 tracking-wide">
-          마우스를 화면 <span className="text-stone-400">왼쪽·오른쪽 끝</span>으로 옮기면 이동합니다
+          {t.guideEdgeShortPre}
+          <span className="text-stone-400">{t.guideEdgeShortEm}</span>
+          {t.guideEdgeShortPost}
         </p>
       )}
     </div>

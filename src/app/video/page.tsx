@@ -2,11 +2,15 @@
 
 import { motion } from 'framer-motion';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { projects } from '@/data/projects';
+import { projects, localizeProject } from '@/data/projects';
+import { useLang } from '@/i18n/LanguageContext';
 import { ExternalLink, Play } from 'lucide-react';
 
 export default function VideoPage() {
-  const videoProjects = projects.filter((p) => p.medium === 'video' && !p.easterEgg);
+  const { lang } = useLang();
+  const videoProjects = projects
+    .filter((p) => p.medium === 'video' && !p.easterEgg)
+    .map((p) => localizeProject(p, lang));
 
   return (
     <PageLayout title="Video">

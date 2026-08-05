@@ -4,14 +4,17 @@ import { useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink } from 'lucide-react';
-import { Project, mediumLabels } from '@/data/projects';
+import { Project, mediumLabels, localizeProject } from '@/data/projects';
+import { useLang } from '@/i18n/LanguageContext';
 
 interface ProjectModalProps {
   project: Project | null;
   onClose: () => void;
 }
 
-export function ProjectModal({ project, onClose }: ProjectModalProps) {
+export function ProjectModal({ project: raw, onClose }: ProjectModalProps) {
+  const { lang } = useLang();
+  const project = raw && localizeProject(raw, lang);
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -20,7 +23,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
       }
     };
 
-    if (project) {
+    if (raw) {
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
@@ -29,7 +32,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [project, onClose]);
+  }, [raw, onClose]);
 
   return (
     <AnimatePresence>

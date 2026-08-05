@@ -19,6 +19,9 @@ export interface Project {
   medium: 'web' | 'video' | 'writing' | 'engine';
   category: 'work' | 'commissions' | 'studies'; // 의도 축: 자기 작품 / 의뢰 / 연구·습작
   description: string;
+  // 한국어 표시용 — 없으면 기본(영어) 필드를 그대로 쓴다 (localizeProject 참고)
+  titleKo?: string;
+  descriptionKo?: string;
   links: { label: string; url: string }[];
   media?: string;
   video?: string; // public 폴더의 mp4 경로 — 모달에서 인라인 재생
@@ -66,11 +69,14 @@ export const projects: Project[] = [
   {
     id: 'tem-system-paper',
     category: 'studies',
-    title: '상호작용 서사에서의 감정 궤적 이탈 측정',
+    title: 'Measuring Emotional Trajectory Divergence in Interactive Narrative',
+    titleKo: '상호작용 서사에서의 감정 궤적 이탈 측정',
     year: 2026,
     tags: [],
     medium: 'writing',
     description:
+      'Measuring Emotional Trajectory Divergence in Interactive Narrative: The Etched Mutation System and Its Metrics.\n\nPresents TEM, a system that treats emotional trajectory as a first-class dimension of interactive narrative, together with contamination vectors that split divergence into drift (directional deviation) and fixation (single-point convergence), and a real-time alignment metric. Internal validity pilot-tested across 193 persona simulation playthroughs. Working Draft v0.3.',
+    descriptionKo:
       'Measuring Emotional Trajectory Divergence in Interactive Narrative: The Etched Mutation System and Its Metrics.\n\n감정 궤적을 상호작용 서사의 일차 차원으로 두는 시스템 TEM과, 궤적 이탈을 drift(방향 이탈)·fixation(단일점 수렴)으로 분리 측정하는 오염 벡터, 실시간 정렬도(alignment) 메트릭을 제시한다. 193건의 페르소나 시뮬레이션 플레이로 메트릭의 내부 타당성을 시범 검증. Working Draft v0.3.',
     links: [
       { label: 'PDF', url: '/papers/tem-system-paper.pdf' },
@@ -79,11 +85,14 @@ export const projects: Project[] = [
   {
     id: 'persona-sim-paper',
     category: 'studies',
-    title: '감정형 인터랙티브 서사를 위한 시뮬레이션 독자',
+    title: 'Simulated Readers for Affective Interactive Narrative',
+    titleKo: '감정형 인터랙티브 서사를 위한 시뮬레이션 독자',
     year: 2026,
     tags: [],
     medium: 'writing',
     description:
+      'Simulated Readers for Affective Interactive Narrative: Pre-Validation through Stratified Sampling of Empirical Personality Distributions.\n\nA simulated-reader pipeline that avoids mode collapse by stratified-sampling personas from the Big Five distributions of 307,313 real humans instead of letting an LLM imagine personalities. Personality predicts alignment (r = 0.55–0.63), and the instrument also measures its own limit — the over-resonance ceiling bias of LLM readers. An exploratory measurement study. Working Draft v0.1.',
+    descriptionKo:
       'Simulated Readers for Affective Interactive Narrative: Pre-Validation through Stratified Sampling of Empirical Personality Distributions.\n\n페르소나의 성격을 LLM이 상상하는 대신 실제 인간 307,313명의 Big Five 분포에서 층화 표집해 mode collapse를 회피하는 시뮬레이션 독자 파이프라인. 성격이 정렬도를 예측하고(r = 0.55–0.63), LLM 독자의 과공명 천장 편향이라는 한계까지 함께 실측한 탐색적 계측기. Working Draft v0.1.',
     links: [
       { label: 'PDF', url: '/papers/persona-sim-paper.pdf' },
@@ -122,13 +131,24 @@ export const projects: Project[] = [
     year: 2025,
     tags: [],
     medium: 'video',
-    description: '현휘와 공동작업 (Collaboration with Hyunhwi). Short film. (Apr 2025)',
+    description: 'Collaboration with Hyunhwi. Short film. (Apr 2025)',
+    descriptionKo: '현휘와 공동작업. 단편영화. (2025년 4월)',
     links: [
       { label: 'Watch', url: 'https://youtu.be/MWgWe-qcbjA' },
     ],
     easterEgg: true, // work 목록에서 숨김 — 추후 이스터에그로 등장시킬 예정
   },
 ];
+
+// 언어에 맞는 제목/설명으로 치환한 사본을 돌려준다 (ko 필드 없으면 영어 유지)
+export function localizeProject(p: Project, lang: 'en' | 'ko'): Project {
+  if (lang !== 'ko') return p;
+  return {
+    ...p,
+    title: p.titleKo ?? p.title,
+    description: p.descriptionKo ?? p.description,
+  };
+}
 
 export const mediumLabels: Record<string, string> = {
   web: 'Interactive',

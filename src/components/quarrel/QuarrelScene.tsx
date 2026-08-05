@@ -12,7 +12,8 @@ import {
 } from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { projects, mediumLabels } from '@/data/projects';
+import { projects, mediumLabels, localizeProject } from '@/data/projects';
+import { useLang, useStrings } from '@/i18n/LanguageContext';
 import * as THREE from 'three';
 // drei의 GLTFLoader와 '같은' three-stdlib에서 SkeletonUtils를 가져온다.
 // three/examples/jsm 경로로 가져오면 프로덕션 빌드에서 three 인스턴스가 갈려
@@ -250,14 +251,29 @@ function Mannequin({
       return;
     }
 
-    // 본체: 평상시엔 혼자 춤추고, 말을 걸면 인사로 크로스페이드
+    // 본체: 평상시엔 혼자 춤추고, 말을 걸면 인사 — 인사는 한 번만.
+    // 끝난 뒤 완전 정지는 프리즈(렉)처럼 보여서, 춤 클립을 아주 느리게 돌려
+    // 숨 쉬는 정도의 미동만 남긴 채 서 있게 한다.
     const idle = list[DOHHAN_IDLE_CLIP] ?? list[0];
     const greet = list[DOHHAN_GREET_CLIP] ?? idle;
-    const to = greeting ? greet : idle;
-    const from = greeting ? idle : greet;
-    if (from && from !== to) from.fadeOut(0.35);
-    to.reset().setEffectiveTimeScale(1).fadeIn(0.35).play();
-  }, [actions, seed, coarse, critic, greeting]);
+    if (greeting && greet !== idle) {
+      idle.fadeOut(0.35);
+      greet.reset();
+      greet.setLoop(THREE.LoopOnce, 1);
+      greet.clampWhenFinished = true;
+      greet.setEffectiveTimeScale(1).fadeIn(0.35).play();
+      const onFinished = (e: { action: THREE.AnimationAction }) => {
+        if (e.action !== greet) return;
+        greet.fadeOut(0.6);
+        idle.reset().setEffectiveTimeScale(0.12).fadeIn(0.6).play();
+      };
+      mixer.addEventListener('finished', onFinished);
+      return () => mixer.removeEventListener('finished', onFinished);
+    } else {
+      if (greet !== idle) greet.fadeOut(0.35);
+      idle.reset().setEffectiveTimeScale(1).fadeIn(0.35).play();
+    }
+  }, [actions, mixer, seed, coarse, critic, greeting]);
 
   // 모바일 전용: 모바일 GPU는 스킨드 메시(뼈 텍스처 스키닝)를 못 그려 마네킹이
   // 안 보인다. → idle 한 포즈를 CPU 스키닝으로 구워(bake) 정적 Mesh로 교체해
@@ -622,33 +638,23 @@ function LookControls({ focus }: { focus: FocusTarget | null }) {
 }
 
 // ── 자아 페르소나 대화창 ─────────────────────────────
-// 인사말·플레이스홀더만 클라이언트에 둔다 (페르소나 본체는 서버 전용)
-const CHAT_META: Record<string, { greeting: string; placeholder: string }> = {
-  commissions: {
-    greeting: '의뢰 쪽을 맡고 있는 자아입니다. 작업 얘기라면 편하게 물어보세요.',
-    placeholder: 'commissions에게 물어보기…',
-  },
-  work: {
-    greeting: '…왔네. 뭐부터 물어볼래.',
-    placeholder: 'work에게 말 걸기…',
-  },
-  dohhan: {
-    greeting: '왔네.',
-    placeholder: '박도한에게 말 걸기…',
-  },
-  studies: {
-    greeting: '아, 여긴 아직 정리 중인데. 그래도 뭐든 물어봐요.',
-    placeholder: 'studies에게 물어보기…',
-  },
-};
-
+// 인사말·플레이스홀더는 언어 사전(useStrings)에 있다 (페르소나 본체는 서버 전용)
 type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
 function PersonaChat({ word }: { word: string }) {
-  const meta = CHAT_META[word] ?? CHAT_META.work;
+  const t = useStrings();
+  const meta = t.chat[word as keyof typeof t.chat] ?? t.chat.work;
   const [msgs, setMsgs] = useState<ChatMsg[]>([
     { role: 'assistant', content: meta.greeting },
   ]);
+  // 대화 시작 전에 언어를 바꾸면 인사말만 새 언어로 교체
+  useEffect(() => {
+    setMsgs((cur) =>
+      cur.length === 1 && cur[0].role === 'assistant'
+        ? [{ role: 'assistant', content: meta.greeting }]
+        : cur,
+    );
+  }, [meta.greeting]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -686,10 +692,7 @@ function PersonaChat({ word }: { word: string }) {
       }
       if (!acc.trim()) throw new Error('empty');
     } catch {
-      setMsgs([
-        ...next,
-        { role: 'assistant', content: '…지금은 말이 안 나오네. 잠시 뒤에 다시.' },
-      ]);
+      setMsgs([...next, { role: 'assistant', content: t.chatError }]);
     } finally {
       setBusy(false);
     }
@@ -728,7 +731,7 @@ function PersonaChat({ word }: { word: string }) {
           onClick={send}
           disabled={busy || !input.trim()}
         >
-          전송
+          {t.chatSend}
         </button>
       </div>
     </div>
@@ -737,7 +740,11 @@ function PersonaChat({ word }: { word: string }) {
 
 // 포커스 시: 얼굴은 왼쪽, 오른쪽에 작업물 패널, 하단에 자아와의 대화창
 function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
-  const list = projects.filter((p) => p.category === word && !p.easterEgg);
+  const { lang } = useLang();
+  const t = useStrings();
+  const list = projects
+    .filter((p) => p.category === word && !p.easterEgg)
+    .map((p) => localizeProject(p, lang));
   // 본체(박도한)는 전시할 작업물이 없다 — 작업물 패널 없이 대화창만 띄운다
   if (word === 'dohhan') {
     return (
@@ -796,7 +803,7 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
             )}
           </article>
         ))}
-        {list.length === 0 && <p className="q-work-desc">비어 있음.</p>}
+        {list.length === 0 && <p className="q-work-desc">{t.panelEmpty}</p>}
       </div>
       <PersonaChat word={word} />
     </div>
@@ -804,6 +811,7 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
 }
 
 export default function QuarrelScene() {
+  const t = useStrings();
   const [dpr, setDpr] = useState(1.5);
   const [hovering, setHovering] = useState(false); // 흰 자아 호버 → 커서 확대
   const [pressing, setPressing] = useState(false); // 흰 자아 클릭 피드백
@@ -965,7 +973,7 @@ export default function QuarrelScene() {
         <div className="q-rotate-icon" aria-hidden="true">
           ▭
         </div>
-        <p>화면을 가로로 돌려주세요</p>
+        <p>{t.rotateDevice}</p>
       </div>
 
       {/* 얼굴 줌 + 대화창 (흰 자아는 작업물 패널도 함께) */}
@@ -1106,7 +1114,7 @@ export default function QuarrelScene() {
         /* 카메라가 얼굴에 다가간 뒤(0.4s 지연) 오른쪽에서 미끄러져 들어온다 */
         .q-side-panel {
           position: absolute;
-          top: 0;
+          top: 62px; /* 상단 연락처+언어 바(62px) 아래에서 시작 — 닫기 버튼 가림 방지 */
           right: 0;
           bottom: 0;
           width: var(--qp-w);

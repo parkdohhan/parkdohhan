@@ -2,11 +2,15 @@
 
 import { motion } from 'framer-motion';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { projects } from '@/data/projects';
+import { projects, localizeProject } from '@/data/projects';
+import { useLang } from '@/i18n/LanguageContext';
 import { ExternalLink, BookOpen } from 'lucide-react';
 
 export default function WritingPage() {
-  const writingProjects = projects.filter((p) => p.medium === 'writing');
+  const { lang } = useLang();
+  const writingProjects = projects
+    .filter((p) => p.medium === 'writing')
+    .map((p) => localizeProject(p, lang));
 
   return (
     <PageLayout title="Writing">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ContactBar } from "@/components/layout/ContactBar";
+import { LanguageProvider } from "@/i18n/LanguageContext";
 
 export const metadata: Metadata = {
   title: "Portfolio | Pathology",
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="font-mono antialiased bg-stone-950 text-stone-300">
-        <ContactBar />
-        {children}
+        <LanguageProvider>
+          <ContactBar />
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
-import { Project, mediumLabels } from '@/data/projects';
+import { Project, mediumLabels, localizeProject } from '@/data/projects';
+import { useLang } from '@/i18n/LanguageContext';
 
 interface ProjectCardProps {
   project: Project;
@@ -10,7 +11,9 @@ interface ProjectCardProps {
   onClick: () => void;
 }
 
-export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
+export function ProjectCard({ project: raw, index, onClick }: ProjectCardProps) {
+  const { lang } = useLang();
+  const project = localizeProject(raw, lang);
   return (
     <motion.article
       className="group cursor-pointer"
