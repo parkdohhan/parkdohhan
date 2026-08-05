@@ -69,8 +69,9 @@ const SELVES = [
   { key: 'novelist',    label: '소설가',     word: 'commissions', pos: at(0.2, -1.1), seed: 0.0, critic: false, confront: true },
   { key: 'film',        label: '영화',       word: 'work',        pos: at(-0.2, 0.0), seed: 0.4, critic: false, confront: true },
   { key: 'interactive', label: '인터랙티브', word: 'studies',     pos: at(0.2,  1.1), seed: 0.8, critic: false, confront: true },
-  // 비평가: word는 페르소나 키로만 쓰고, 머리 위 라벨은 숨긴다(hideWord)
-  { key: 'critic',      label: '비평가',     word: 'critic',      pos: at(-6.9, 0.0), seed: 0.6, critic: true,  confront: true, hideWord: true },
+  // 본체(박도한): word는 페르소나 키로만 쓰고, 머리 위 라벨은 숨긴다(hideWord).
+  // critic 플래그는 렌더 분기용 — 검은 재질 + 앉은 자세 모델.
+  { key: 'critic',      label: '박도한',     word: 'dohhan',      pos: at(-6.9, 0.0), seed: 0.6, critic: true,  confront: true, hideWord: true },
 ];
 
 // 방문 기록(localStorage) — 비평가는 이제 잠금 없이 바로 대화하므로 언락 게이트는
@@ -171,6 +172,7 @@ function Mannequin({
   confront = false,
   onHover,
   onActivate,
+  onMeasureHead,
 }: {
   pos: [number, number, number];
   face: [number, number];
@@ -180,6 +182,8 @@ function Mannequin({
   confront?: boolean;
   onHover?: (v: boolean) => void;
   onActivate?: () => void;
+  /** 포즈가 적용된 뒤 실제 머리(월드 Y)를 한 번 재서 알린다 — 포커스 카메라 높이용 */
+  onMeasureHead?: (headY: number) => void;
 }) {
   // 비평가는 앉은 자세(Sitting Idle) 전용 모델을 쓴다
   const { scene, animations } = useGLTF(
@@ -294,9 +298,42 @@ function Mannequin({
     });
   }, [cloned, critic]);
 
+  // 포즈가 적용된 뒤 실제 머리 높이를 한 번만 잰다.
+  // 스케일 정규화는 바인드 포즈(T자) 기준이라, 앉은 자세 모델은 정규화 후에도
+  // 머리가 1.7m가 아니라 훨씬 아래에 온다 — 포커스 카메라가 이 값을 써야
+  // 서 있든 앉아 있든 얼굴을 정확히 마주 본다.
+  const measured = useRef(false);
+  const frames = useRef(0);
+  useFrame(() => {
+    if (measured.current || !onMeasureHead) return;
+    // 믹서가 첫 포즈를 적용할 시간을 준다 (모바일 bake 경로도 이 시점엔 끝나 있음)
+    if (frames.current++ < 3) return;
+
+    cloned.updateMatrixWorld(true);
+    let head: THREE.Object3D | null = null;
+    cloned.traverse((o) => {
+      // mixamorigHead는 잡고 mixamorigHeadTop_End는 거른다
+      if (!head && /head/i.test(o.name) && !/end|top/i.test(o.name)) head = o;
+    });
+
+    let y = 0;
+    if (head) {
+      y = (head as THREE.Object3D).getWorldPosition(new THREE.Vector3()).y;
+    } else {
+      // 본을 못 찾으면 포즈된 바운딩 박스 상단으로 대체
+      const box = new THREE.Box3().setFromObject(cloned);
+      if (box.isEmpty()) return;
+      y = box.max.y - 0.12;
+    }
+    if (y > 0.1) {
+      measured.current = true;
+      onMeasureHead(y);
+    }
+  });
+
   // 모델 기본 정면축은 +Z. dir = face - pos (= 플레이어 발밑 방향).
   // confront=false: 플레이어를 등지고 정면 모서리를 향함(세 자아).
-  // confront=true : 모서리에 서서 플레이어/자아군을 마주 봄(비평가).
+  // confront=true : 모서리에서 플레이어/자아군을 마주 봄(박도한 본체).
   const dx = face[0] - pos[0];
   const dz = face[1] - pos[2];
   const rotY = confront ? Math.atan2(dx, dz) : Math.atan2(-dx, -dz);
@@ -395,9 +432,14 @@ const MOVE_GRACE = 0.12; // 이 시간 안에 커서가 움직였으면 '미는 
 
 // 클릭 포커스: 마네킹 얼굴 정면으로 다가가는 카메라 무빙
 const FOCUS_DIST = 1.15; // 얼굴에서 카메라까지 거리(m)
-const FOCUS_EYE = 1.52; // 포커스 시 카메라 높이(m)
-const FOCUS_FACE_Y = 1.5; // 바라보는 지점(얼굴) 높이(m)
-type FocusTarget = { pos: [number, number, number]; rotY: number };
+const FOCUS_FACE_Y = 1.5; // 얼굴 높이 기본값(m) — 측정 실패 시 폴백(서 있는 자세)
+const HEAD_BONE_TO_FACE = 0.08; // 머리뼈(목 위)에서 얼굴 중심까지의 보정(m)
+const EYE_ABOVE_FACE = 0.02; // 카메라를 얼굴보다 살짝 위에 둔다(m)
+type FocusTarget = {
+  pos: [number, number, number];
+  rotY: number;
+  faceY: number; // 이 마네킹의 실제 얼굴 높이 — 앉은 자세도 정확히 마주 본다
+};
 // 프레임마다 재사용하는 임시 벡터 (GC 방지)
 const _pos = new THREE.Vector3();
 const _look = new THREE.Vector3();
@@ -525,10 +567,10 @@ function LookControls({ focus }: { focus: FocusTarget | null }) {
       const offZ = -dirX * side;
       _fPos.set(
         lf.pos[0] + dirX * FOCUS_DIST + offX,
-        FOCUS_EYE,
+        lf.faceY + EYE_ABOVE_FACE,
         lf.pos[2] + dirZ * FOCUS_DIST + offZ,
       );
-      _fLook.set(lf.pos[0] + offX, FOCUS_FACE_Y, lf.pos[2] + offZ);
+      _fLook.set(lf.pos[0] + offX, lf.faceY, lf.pos[2] + offZ);
       _pos.lerp(_fPos, s.f);
       _look.lerp(_fLook, s.f);
     }
@@ -551,9 +593,9 @@ const CHAT_META: Record<string, { greeting: string; placeholder: string }> = {
     greeting: '…왔네. 뭐부터 물어볼래.',
     placeholder: 'work에게 말 걸기…',
   },
-  critic: {
+  dohhan: {
     greeting: '왔네.',
-    placeholder: '비평가에게 말 걸기…',
+    placeholder: '박도한에게 말 걸기…',
   },
   studies: {
     greeting: '아, 여긴 아직 정리 중인데. 그래도 뭐든 물어봐요.',
@@ -657,8 +699,8 @@ function PersonaChat({ word }: { word: string }) {
 // 포커스 시: 얼굴은 왼쪽, 오른쪽에 작업물 패널, 하단에 자아와의 대화창
 function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
   const list = projects.filter((p) => p.category === word && !p.easterEgg);
-  // 비평가는 작품이 없다 — 작업물 패널 없이 대화창만 띄운다(전체 폭 사용)
-  if (word === 'critic') {
+  // 본체(박도한)는 전시할 작업물이 없다 — 작업물 패널 없이 대화창만 띄운다
+  if (word === 'dohhan') {
     return (
       <div className="q-focus-layer q-focus-solo" onClick={onClose}>
         <PersonaChat word={word} />
@@ -727,10 +769,12 @@ export default function QuarrelScene() {
   const [hovering, setHovering] = useState(false); // 흰 자아 호버 → 커서 확대
   const [pressing, setPressing] = useState(false); // 흰 자아 클릭 피드백
   const [focused, setFocused] = useState<
-    null | { word: string; pos: [number, number, number]; rotY: number }
-  >(null); // 클릭된 자아 — 얼굴 줌 + 작업물 패널
+    null | (FocusTarget & { word: string })
+  >(null); // 클릭된 자아 — 얼굴 줌 + 대화창
   const cursorRef = useRef<HTMLDivElement>(null);
   const timers = useRef<{ press?: number }>({});
+  // 마네킹별 실측 머리 높이(월드 Y) — Mannequin이 포즈 적용 후 한 번 보고한다
+  const headY = useRef<Record<string, number>>({});
 
   // 커스텀 커서가 포인터를 따라다니게 (state 리렌더 없이 ref로 직접)
   useEffect(() => {
@@ -771,7 +815,10 @@ export default function QuarrelScene() {
     markVisited(self.word); // 방문 기록(분류별 진행 상태)
     // 마네킹이 보는 방향(플레이어 쪽) = 얼굴 정면. Mannequin의 rotY와 같은 식.
     const rotY = Math.atan2(FACE[0] - self.pos[0], FACE[1] - self.pos[2]);
-    setFocused({ word: self.word, pos: self.pos, rotY });
+    // 실측 머리 높이가 있으면 그걸로 — 앉은 자세(박도한)도 얼굴을 정확히 마주 본다
+    const measured = headY.current[self.key];
+    const faceY = measured ? measured + HEAD_BONE_TO_FACE : FOCUS_FACE_Y;
+    setFocused({ word: self.word, pos: self.pos, rotY, faceY });
   };
 
   return (
@@ -818,6 +865,9 @@ export default function QuarrelScene() {
               confront={s.confront}
               onHover={setHovering}
               onActivate={() => handleSelf(s)}
+              onMeasureHead={(y) => {
+                headY.current[s.key] = y;
+              }}
             />
           ))}
           {/* 발밑 접지 그림자 — 실사감의 핵심, shadowMap보다 저렴 */}
@@ -849,7 +899,11 @@ export default function QuarrelScene() {
         />
 
         <LookControls
-          focus={focused ? { pos: focused.pos, rotY: focused.rotY } : null}
+          focus={
+            focused
+              ? { pos: focused.pos, rotY: focused.rotY, faceY: focused.faceY }
+              : null
+          }
         />
       </Canvas>
 
