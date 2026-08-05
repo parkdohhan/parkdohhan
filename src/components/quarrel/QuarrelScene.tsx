@@ -447,12 +447,12 @@ function Room() {
 // 중간에 놓으면 되돌아간다(절반을 넘겼으면 마저 넘어간다).
 const YAW_RANGE = 0.5; // 좌우 시선 가동 범위(rad) — 세 자아가 화면을 벗어나지 않는 폭
 const PITCH_RANGE = 0.22;
-const EDGE_ZONE = 0.9; // |nx|가 이 이상이면 한계를 미는 중
-const EDGE_HOLD = 1.4; // 저항이 무너지기까지 미는 누적 시간(s)
+const EDGE_ZONE = 0.82; // |nx|가 이 이상이면 한계를 미는 중 (넓힐수록 걸기 쉽다)
+const EDGE_HOLD = 0.9; // 저항이 무너지기까지 미는 누적 시간(s)
 const GRIND_SPEED = Math.PI / 1.8; // 미는 동안의 회전 속도(rad/s) — 반 바퀴에 1.8s
 const SHAKE_MAX = 0.014; // 떨림 진폭(rad) — 아주 잔잔하게
 const SHAKE_FREQ = 10; // 떨림 주파수(rad/s) — 부드러운 사인 스웨이
-const MOVE_GRACE = 0.12; // 이 시간 안에 커서가 움직였으면 '미는 중'으로 간주(s)
+const TAP_BOOST = 0.42; // 가장자리를 한 번 톡 칠 때 쌓이는 압력(s) — 3번이면 넘어간다
 
 // 클릭 포커스: 마네킹 얼굴 정면으로 다가가는 카메라 무빙
 const FOCUS_DIST = 1.15; // 얼굴에서 카메라까지 거리(m)
@@ -472,35 +472,54 @@ const _fLook = new THREE.Vector3();
 
 function LookControls({ focus }: { focus: FocusTarget | null }) {
   const { camera } = useThree();
+  const coarse = useCoarsePointer();
   const st = useRef({
     nx: 0, // 커서 정규화 좌표 [-1, 1]
     ny: 0,
-    base: LOOK_YAW0, // 현재 시선 중심(앞=자아들 / 뒤=비평가)
+    base: LOOK_YAW0, // 현재 시선 중심(앞=자아들 / 뒤=본체)
     yaw: LOOK_YAW0,
     pitch: LOOK_PITCH0,
     pressure: 0, // 한계를 미는 누적 압력
     grind: null as null | { from: number; dir: number }, // 갈리듯 돌아가는 중
     t: 0,
-    sinceMove: 999, // 마지막 커서 이동 이후 경과(s) — '미는 중'인지 판별
+    down: false, // 포인터를 누르고 있는가 (터치에서 '미는 중' 판별)
     f: 0, // 포커스 블렌드 0(자유 시점)→1(얼굴 정면)
     lastFocus: null as FocusTarget | null, // 복귀 무빙 동안 참조할 마지막 타깃
   });
 
   useEffect(() => {
-    const move = (e: PointerEvent) => {
+    const setPos = (e: PointerEvent) => {
       st.current.nx = (e.clientX / window.innerWidth) * 2 - 1;
       st.current.ny = (e.clientY / window.innerHeight) * 2 - 1;
-      st.current.sinceMove = 0; // 방금 커서가 움직임
+    };
+    const move = (e: PointerEvent) => setPos(e);
+    const down = (e: PointerEvent) => {
+      setPos(e);
+      st.current.down = true;
+      // 가장자리를 톡톡 치는 것만으로도 넘어갈 수 있게 — 연타가 곧 압력
+      if (Math.abs(st.current.nx) > EDGE_ZONE) {
+        st.current.pressure += TAP_BOOST;
+      }
+    };
+    const up = () => {
+      st.current.down = false;
     };
     window.addEventListener('pointermove', move);
-    return () => window.removeEventListener('pointermove', move);
+    window.addEventListener('pointerdown', down);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
   }, []);
 
   useFrame((_, dt) => {
     const s = st.current;
     const d = Math.min(dt, 0.05);
     s.t += d;
-    s.sinceMove += d;
 
     // 포커스 블렌드: 클릭 시 1로, 닫으면 0으로 지수 접근 (다가가는/돌아오는 무빙)
     if (focus) s.lastFocus = focus;
@@ -509,36 +528,24 @@ function LookControls({ focus }: { focus: FocusTarget | null }) {
 
     let shake = 0;
     const atEdge = Math.abs(s.nx) > EDGE_ZONE;
-    // 옵션2: 가장자리를 '실제로 미는 중'(방금 커서가 움직임)일 때만 압력이 쌓인다.
-    // 가만히 두면 안 걸린다. (이미 돌파해 갈리는 중이면 위치만으로 유지)
+    // 가장자리에 '머물기만 해도' 압력이 쌓인다(마우스는 hover, 터치는 누르고 있는 동안).
+    // 터치는 손을 떼면 좌표가 그 자리에 남으므로 누르고 있을 때만 인정한다.
     // 포커스 중에는 한계 공략/시선 추적을 모두 정지한다.
-    const pushing = !focus && atEdge && s.sinceMove < MOVE_GRACE;
+    const pushing = !focus && atEdge && (!coarse || s.down);
 
     if (focus) {
       s.pressure = 0;
     } else if (s.grind) {
       const g = s.grind;
       const to = g.from + g.dir * Math.PI;
-      const samePush = atEdge && (s.nx > 0 ? -1 : 1) === g.dir;
-      if (samePush) {
-        // 미는 동안: 지속적인 떨림을 유지한 채 천천히 갈리듯 돌아간다
-        s.base += g.dir * GRIND_SPEED * d;
-        shake = SHAKE_MAX;
-        if ((to - s.base) * g.dir <= 0) {
-          s.base = to; // 반 바퀴 완료 — 등 뒤 도착
-          s.grind = null;
-          s.pressure = 0;
-        }
-      } else {
-        // 놓으면 가까운 쪽으로 복귀 (절반을 넘겼으면 마저 넘어간다)
-        const target = Math.abs(s.base - g.from) > Math.PI / 2 ? to : g.from;
-        s.base += (target - s.base) * (1 - Math.exp(-5 * d));
-        shake = SHAKE_MAX * 0.4; // 잦아드는 잔떨림
-        if (Math.abs(target - s.base) < 0.01) {
-          s.base = target;
-          s.grind = null;
-          s.pressure = 0;
-        }
+      // 한 번 저항이 무너지면 손을 떼도 끝까지 돈다.
+      // (밀다 놓으면 되돌아가던 예전 동작은 "뒤로 넘어가기가 어렵다"는 이유로 걷어냄)
+      s.base += g.dir * GRIND_SPEED * d;
+      shake = SHAKE_MAX;
+      if ((to - s.base) * g.dir <= 0) {
+        s.base = to; // 반 바퀴 완료 — 등 뒤 도착
+        s.grind = null;
+        s.pressure = 0;
       }
     } else {
       // 가장자리를 누르는 동안 압력이 쌓이고, 떼면 빠르게 식는다
@@ -945,6 +952,14 @@ export default function QuarrelScene() {
         </div>
       )}
 
+      {/* 모바일 세로에선 방이 제대로 안 담긴다 — 가로로 돌리라고 막아둔다 */}
+      <div className="q-rotate">
+        <div className="q-rotate-icon" aria-hidden="true">
+          ▭
+        </div>
+        <p>화면을 가로로 돌려주세요</p>
+      </div>
+
       {/* 얼굴 줌 + 대화창 (흰 자아는 작업물 패널도 함께) */}
       {focused && (
         <WorkPanel word={focused.word} onClose={() => setFocused(null)} />
@@ -1029,6 +1044,39 @@ export default function QuarrelScene() {
         .q-subtitle.show {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
+        }
+        /* ── 모바일 세로 차단 오버레이 ── */
+        .q-rotate { display: none; }
+        @media (max-width: 900px) and (orientation: portrait) {
+          .q-rotate {
+            position: fixed;
+            inset: 0;
+            z-index: 95;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            background: #14120f;
+            color: #ded9cf;
+            font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo',
+              'Noto Sans KR', sans-serif;
+            font-size: 15px;
+            letter-spacing: 0.02em;
+            text-align: center;
+            padding: 24px;
+          }
+          .q-rotate p { margin: 0; }
+          .q-rotate-icon {
+            font-size: 54px;
+            line-height: 1;
+            color: #8f887c;
+            animation: q-rotate-turn 2.4s ease-in-out infinite;
+          }
+        }
+        @keyframes q-rotate-turn {
+          0%, 30%   { transform: rotate(90deg); }
+          60%, 100% { transform: rotate(0deg); }
         }
         /* ── 포커스 레이어: 우측 작업물 패널 + 하단 대화창 ── */
         .q-focus-layer {
