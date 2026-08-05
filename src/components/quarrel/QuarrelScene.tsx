@@ -38,6 +38,14 @@ const DOHHAN_GREET_CLIP = 3; // 말 걸면 인사로 전환 (미확정 — 아�
 
 const TARGET_HEIGHT = 1.7; // m
 
+// 모바일 안전망 스위치.
+// 한때 폰에서 스킨 메시(마네킹)가 안 보여, 터치 기기에서는 idle 한 프레임을
+// CPU 스키닝으로 구워(bake) 정적 메시로 교체했다. 다만 그때의 미표시는
+// 잘못 넣은 precision/onCreated 커밋(되돌림) 탓이었을 가능성이 크고,
+// bake는 애니메이션을 완전히 멈춰 세운다(= 폰에서 춤을 못 본다).
+// 그래서 기본은 끔. 폰에서 마네킹이 안 보이면 이 한 줄만 true로 되돌린다.
+const MOBILE_STATIC_BAKE = false;
+
 // ── 무대 축(스테이지) ───────────────────────────────────────
 // 플레이어(카메라)는 방의 뒷-왼쪽 모서리 근처에 서서 앞-오른쪽 모서리를
 // 바라본다. s = 시선축 거리(+가 플레이어에서 멀어지는 쪽), t = 좌우.
@@ -226,7 +234,7 @@ function Mannequin({
 
   // idle 애니메이션 재생 — 데스크톱만 (모바일은 정적 포즈로 구워서 스키닝 회피)
   useEffect(() => {
-    if (coarse) return;
+    if (coarse && MOBILE_STATIC_BAKE) return; // bake 경로일 때만 애니를 건너뛴다
     const list = Object.values(actions).filter(
       Boolean,
     ) as THREE.AnimationAction[];
@@ -255,7 +263,7 @@ function Mannequin({
   // 안 보인다. → idle 한 포즈를 CPU 스키닝으로 구워(bake) 정적 Mesh로 교체해
   // 스키닝 셰이더를 아예 안 타게 한다. 방(일반 메시)이 보이므로 정적 메시는 반드시 보인다.
   useEffect(() => {
-    if (!coarse) return;
+    if (!coarse || !MOBILE_STATIC_BAKE) return;
     // 자연스러운 자세를 위해 idle 한 프레임을 적용한 뒤 그 포즈로 굽는다
     const action = Object.values(actions)[0];
     if (action) {
