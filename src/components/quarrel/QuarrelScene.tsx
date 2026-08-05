@@ -27,9 +27,14 @@ const MODEL = '/models/ybot-standing.glb';
 // 고정해 배포 환경(교차출처/CDN 변수)에서도 안정적으로 로드되게 한다.
 const DRACO_PATH = '/draco/';
 useGLTF.preload(MODEL, DRACO_PATH);
-// 비평가 전용 모델 — Mixamo Sitting Idle (마네킹/Sitting Idle.fbx → GLB 변환·Draco 압축)
-const CRITIC_MODEL = '/models/critic-sitting.glb';
+// 본체(박도한) 전용 — Tripo로 만든 실사 모델. 리그·애니 4종 내장
+// (원본 76MB → simplify 0.2 + Draco = 8MB).
+const CRITIC_MODEL = '/models/dohhan.glb';
 useGLTF.preload(CRITIC_MODEL, DRACO_PATH);
+// 내장 클립: [0] 2.9초=춤, [1] 3.6초=화남, [2] 17.1초=?, [3] 6.0초=?
+// 어느 게 뭔지 보고 바꾸려면 이 두 숫자만 고치면 된다.
+const DOHHAN_IDLE_CLIP = 0; // 뒤돌아보면 혼자 춤추고 있다
+const DOHHAN_GREET_CLIP = 3; // 말 걸면 인사로 전환 (미확정 — 아니면 2로)
 
 const TARGET_HEIGHT = 1.7; // m
 
@@ -173,6 +178,7 @@ function Mannequin({
   onHover,
   onActivate,
   onMeasureHead,
+  greeting = false,
 }: {
   pos: [number, number, number];
   face: [number, number];
@@ -184,6 +190,8 @@ function Mannequin({
   onActivate?: () => void;
   /** 포즈가 적용된 뒤 실제 머리(월드 Y)를 한 번 재서 알린다 — 포커스 카메라 높이용 */
   onMeasureHead?: (headY: number) => void;
+  /** 본체 전용: 말을 걸었을 때 true — 춤에서 인사로 크로스페이드 */
+  greeting?: boolean;
 }) {
   // 비평가는 앉은 자세(Sitting Idle) 전용 모델을 쓴다
   const { scene, animations } = useGLTF(
@@ -219,14 +227,29 @@ function Mannequin({
   // idle 애니메이션 재생 — 데스크톱만 (모바일은 정적 포즈로 구워서 스키닝 회피)
   useEffect(() => {
     if (coarse) return;
-    const action = Object.values(actions)[0];
-    if (action) {
-      action.reset();
-      action.time = seed * (action.getClip().duration || 1);
-      action.setEffectiveTimeScale(0.9);
-      action.play();
+    const list = Object.values(actions).filter(
+      Boolean,
+    ) as THREE.AnimationAction[];
+    if (!list.length) return;
+
+    // 흰 자아 셋: 클립 하나를 개체마다 다른 지점에서 재생(동기화 깨기)
+    if (!critic) {
+      const a = list[0];
+      a.reset();
+      a.time = seed * (a.getClip().duration || 1);
+      a.setEffectiveTimeScale(0.9);
+      a.play();
+      return;
     }
-  }, [actions, seed, coarse]);
+
+    // 본체: 평상시엔 혼자 춤추고, 말을 걸면 인사로 크로스페이드
+    const idle = list[DOHHAN_IDLE_CLIP] ?? list[0];
+    const greet = list[DOHHAN_GREET_CLIP] ?? idle;
+    const to = greeting ? greet : idle;
+    const from = greeting ? idle : greet;
+    if (from && from !== to) from.fadeOut(0.35);
+    to.reset().setEffectiveTimeScale(1).fadeIn(0.35).play();
+  }, [actions, seed, coarse, critic, greeting]);
 
   // 모바일 전용: 모바일 GPU는 스킨드 메시(뼈 텍스처 스키닝)를 못 그려 마네킹이
   // 안 보인다. → idle 한 포즈를 CPU 스키닝으로 구워(bake) 정적 Mesh로 교체해
@@ -286,12 +309,13 @@ function Mannequin({
         mesh.castShadow = true;
         mesh.receiveShadow = false;
         mesh.frustumCulled = false;
-        // 변환본은 Mixamo 원본 텍스처(살구색)를 갖고 있어 항상 오버라이드한다:
-        // 흰 자아 = 밝은 무채색, 비평가 = 무광 검정
+        // 본체(박도한)는 Tripo 실사 텍스처를 그대로 쓴다 — 오버라이드하지 않는다.
+        // 흰 자아 셋만 Mixamo 원본 텍스처(살구색)를 무채색으로 덮는다.
+        if (critic) return;
         const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
         mat.map = null;
-        mat.color = new THREE.Color(critic ? '#0e0e0e' : '#eaeaea');
-        mat.roughness = critic ? 0.6 : 0.4;
+        mat.color = new THREE.Color('#eaeaea');
+        mat.roughness = 0.4;
         mat.metalness = 0;
         mesh.material = mat;
       }
@@ -868,6 +892,7 @@ export default function QuarrelScene() {
               onMeasureHead={(y) => {
                 headY.current[s.key] = y;
               }}
+              greeting={focused?.word === s.word}
             />
           ))}
           {/* 발밑 접지 그림자 — 실사감의 핵심, shadowMap보다 저렴 */}

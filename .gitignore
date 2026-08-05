@@ -42,3 +42,6 @@ next-env.d.ts
 
 # 작업용 원본 영상 (로컬 보관)
 /*.mp4
+
+# Tripo 등에서 받은 원본 3D 소스 (수십 MB) — 압축본만 public/models/에 커밋한다
+/마네킹/*.glb
