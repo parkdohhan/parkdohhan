@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "▶ 로컬 브라우저 열기",
+      "type": "shell",
+      "command": "bash '/Users/parksojung/Desktop/parkdohhan/parkdohhan/scripts/open-local.sh'",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "clear": true,
+        "close": true
+      },
+      "detail": "Cmd+Shift+B — dev 서버(없으면 기동) + 로컬 브라우저 열기"
+    },
+    {
+      "label": "⏹ 로컬 서버 종료",
+      "type": "shell",
+      "command": "lsof -ti:3939 | xargs kill 2>/dev/null; echo '로컬 서버(3939) 종료됨'",
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent", "close": true },
+      "detail": "parkdohhan 전용 포트 3939 dev 서버만 종료"
+    }
+  ]
+}
