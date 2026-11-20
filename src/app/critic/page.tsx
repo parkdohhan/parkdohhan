@@ -1,6 +1,6 @@
 'use client';
 
-// 비평가 전용 페이지 — 세 분류(commissions/work/studies)를 모두 방문해야 언락된다.
+// 예전 비평가 언락 페이지. 지금 방에서는 본체와 바로 대화하므로 여기로 오는 링크가 없다(직접 주소로만 접근).
 // 본문은 추후 채우되, 빈 화면이 버그로 읽히지 않도록 최소한의 표식만 둔다.
 import Link from 'next/link';
 import { useStrings } from '@/i18n/LanguageContext';

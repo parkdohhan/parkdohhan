@@ -9,6 +9,7 @@ import {
   AdaptiveDpr,
   PerformanceMonitor,
   Text,
+  useTexture,
 } from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
@@ -20,16 +21,12 @@ import * as THREE from 'three';
 // clone 내부의 instanceof SkinnedMesh가 깨지고 → 스킨 메시(마네킹)가 안 보인다.
 import { SkeletonUtils } from 'three-stdlib';
 
-// 흰 자아 모델 — 기존 ybot.glb는 지오메트리 바운딩과 스켈레톤 스케일이 어긋나
-// (Armature 0.01 + bbox 6.3배 불일치) 정규화가 깨지므로, 비평가와 동일한
-// 파이프라인(FBX2glTF + gltf-transform draco)으로 원본 FBX에서 재변환한 모델을 쓴다.
-const MODEL = '/models/ybot-standing.glb';
-// ybot.glb는 Draco 압축 → 디코더 필요. CDN(gstatic) 대신 자체 호스팅(/draco/)으로
-// 고정해 배포 환경(교차출처/CDN 변수)에서도 안정적으로 로드되게 한다.
-const DRACO_PATH = '/draco/';
-useGLTF.preload(MODEL, DRACO_PATH);
 // 본체(박도한) 전용 — Tripo로 만든 실사 모델. 리그·애니 4종 내장
 // (원본 76MB → simplify 0.2 + Draco = 8MB).
+// Draco 압축이라 디코더가 필요하다. CDN(gstatic) 대신 자체 호스팅(/draco/)으로
+// 고정해 배포 환경(교차출처/CDN 변수)에서도 안정적으로 로드되게 한다.
+// (서 있는 세 자아는 그림 입간판이라 3D 모델을 쓰지 않는다 — 아래 ART 참고)
+const DRACO_PATH = '/draco/';
 const CRITIC_MODEL = '/models/dohhan.glb';
 useGLTF.preload(CRITIC_MODEL, DRACO_PATH);
 // 내장 클립: [0] 2.9초=춤, [1] 3.6초=화남, [2] 17.1초=?, [3] 6.0초=?
@@ -37,9 +34,27 @@ useGLTF.preload(CRITIC_MODEL, DRACO_PATH);
 const DOHHAN_IDLE_CLIP = 0; // 뒤돌아보면 혼자 춤추고 있다
 const DOHHAN_GREET_CLIP = 3; // 말 걸면 인사로 전환 (미확정 — 아니면 2로)
 
-const TARGET_HEIGHT = 1.7; // m
+const TARGET_HEIGHT = 1.7; // 본체 마네킹의 키(m)
 
-// 모바일 안전망 스위치.
+// ── 서 있는 세 자아 = 그림 입간판 ───────────────────────────
+// 배경을 걷어낸 컷아웃(투명 WebP)을 평면에 붙여 바닥에 세운다.
+//   h      : 입간판 키(m)
+//   aspect : 컷아웃 가로/세로 비
+//   faceU  : 컷아웃 안에서 얼굴 중심의 가로 위치(왼쪽에서부터 비율) —
+//            얼굴이 자아의 좌표(pos) 위에 오도록 평면을 좌우로 민다
+//   focusY : 클릭해 들어갔을 때 카메라가 바라보는 높이(m)
+const ART = {
+  // commissions — 사진 흉상 컷아웃
+  man: { tex: '/quarrel/man-standee.webp', h: 1.25, aspect: 1.108, faceU: 0.576, focusY: 0.68 },
+  // work — 빨간 망토 (머리가 커서 머리카락 끝까지 담기게 얼굴보다 살짝 위를 본다)
+  cape: { tex: '/quarrel/self-standee.webp', h: 1.85, aspect: 0.4107, faceU: 0.374, focusY: 1.45 },
+  // studies — 얼굴 액자 조형물 (뚫린 칸은 투명)
+  frame: { tex: '/quarrel/frame-standee.webp', h: 1.4, aspect: 0.8893, faceU: 0.475, focusY: 0.74 },
+} as const;
+type ArtKey = keyof typeof ART;
+Object.values(ART).forEach((a) => useTexture.preload(a.tex));
+
+// 모바일 안전망 스위치 (본체 마네킹 전용 — 입간판은 스킨 메시가 아니라 해당 없음).
 // 한때 폰에서 스킨 메시(마네킹)가 안 보여, 터치 기기에서는 idle 한 프레임을
 // CPU 스키닝으로 구워(bake) 정적 메시로 교체했다. 다만 그때의 미표시는
 // 잘못 넣은 precision/onCreated 커밋(되돌림) 탓이었을 가능성이 크고,
@@ -68,24 +83,31 @@ const CAMERA_POS: [number, number, number] = [
   1.6,
   at(PLAYER_S, 0)[2],
 ];
-// 마네킹들이 바라보는 지점 = 플레이어 발밑 (yaw 계산에만 사용)
+// 자아들이 바라보는 지점 = 플레이어 발밑 (yaw 계산에만 사용)
 const FACE: [number, number] = [CAMERA_POS[0], CAMERA_POS[2]];
 
-// 1인칭 초기 시선: 앞-오른쪽 모서리(+AXIS) = 세 자아를 마주 본다. 뒤돌면 비평가.
+// 1인칭 초기 시선: 앞-오른쪽 모서리(+AXIS) = 세 자아를 마주 본다. 뒤돌면 본체.
 const LOOK_YAW0 = Math.PI / 4;
 const LOOK_PITCH0 = -0.08;
 
-// 세 자아: 플레이어 바로 앞(+AXIS)에 완만한 호로 서서 플레이어를 마주 본다.
-// 비평가: 정반대편(−AXIS, 플레이어 등 뒤) 모서리에 홀로 서서 플레이어를 본다.
-//   → 정면을 보면 세 자아만, 뒤돌아야 비평가만 보인다(한 화면에 같이 안 잡힘).
-// word: 안면에 박히는 분류명 (화면 왼쪽=commissions / 가운데=work / 오른쪽=studies)
-const SELVES = [
-  { key: 'novelist',    label: '소설가',     word: 'commissions', pos: at(0.2, -1.1), seed: 0.0, critic: false, confront: true },
-  { key: 'film',        label: '영화',       word: 'work',        pos: at(-0.2, 0.0), seed: 0.4, critic: false, confront: true },
-  { key: 'interactive', label: '인터랙티브', word: 'studies',     pos: at(0.2,  1.1), seed: 0.8, critic: false, confront: true },
-  // 본체(박도한): word는 페르소나 키로만 쓰고, 머리 위 라벨은 숨긴다(hideWord).
-  // critic 플래그는 렌더 분기용 — 검은 재질 + 앉은 자세 모델.
-  { key: 'critic',      label: '박도한',     word: 'dohhan',      pos: at(-6.9, 0.0), seed: 0.6, critic: true,  confront: true, hideWord: true },
+// 세 자아(그림 입간판): 플레이어 바로 앞(+AXIS)에 완만한 호로 서서 플레이어를 마주 본다.
+// 본체(박도한): 정반대편(−AXIS, 플레이어 등 뒤) 모서리에서 홀로 플레이어를 본다.
+//   → 정면을 보면 세 자아만, 뒤돌아야 본체만 보인다(한 화면에 같이 안 잡힘).
+// word: 머리 위에 뜨는 분류명이자 페르소나 키 (화면 왼쪽=commissions / 가운데=work / 오른쪽=studies)
+// art : 입간판 그림(ART의 키). 본체는 3D 마네킹이라 null.
+const SELVES: {
+  key: string;
+  label: string;
+  word: string;
+  pos: [number, number, number];
+  seed: number;
+  art: ArtKey | null;
+}[] = [
+  { key: 'novelist',    label: '소설가',     word: 'commissions', pos: at(0.2, -1.1), seed: 0.0, art: 'man' },
+  { key: 'film',        label: '영화',       word: 'work',        pos: at(-0.2, 0.0), seed: 0.4, art: 'cape' },
+  { key: 'interactive', label: '인터랙티브', word: 'studies',     pos: at(0.2,  1.1), seed: 0.8, art: 'frame' },
+  // 본체(박도한): word는 페르소나 키로만 쓴다(머리 위 라벨 없음).
+  { key: 'critic',      label: '박도한',     word: 'dohhan',      pos: at(-6.9, 0.0), seed: 0.6, art: null },
 ];
 
 // 방문 기록(localStorage) — 비평가는 이제 잠금 없이 바로 대화하므로 언락 게이트는
@@ -109,13 +131,14 @@ function markVisited(word: string) {
   } catch {}
 }
 
-// 머리 위 분류명 라벨: 마네킹과 같은 방향(플레이어 쪽)을 보며, 살짝 떠서 오르내린다
-const WORD_HEIGHT = 2.04; // 머리 위 여백(머리끝 1.7m + 0.34m)
+// 머리 위 분류명 라벨: 입간판과 같은 방향(플레이어 쪽)을 보며, 살짝 떠서 오르내린다
+const WORD_GAP = 0.19; // 입간판 꼭대기에서 라벨까지의 여백(m)
 function FloatingWord({
   word,
   pos,
   rotY,
   seed,
+  height,
   onHover,
   onActivate,
 }: {
@@ -123,6 +146,7 @@ function FloatingWord({
   pos: [number, number, number];
   rotY: number;
   seed: number;
+  height: number; // 라벨이 뜨는 높이(m) — 입간판마다 키가 다르다
   onHover?: (v: boolean) => void;
   onActivate?: () => void;
 }) {
@@ -132,11 +156,11 @@ function FloatingWord({
     if (g) {
       // seed로 위상을 흩어 셋이 같은 박자로 출렁이지 않게
       g.position.y =
-        WORD_HEIGHT + Math.sin(clock.elapsedTime * 1.1 + seed * 7) * 0.03;
+        height + Math.sin(clock.elapsedTime * 1.1 + seed * 7) * 0.03;
     }
   });
   return (
-    <group ref={ref} position={[pos[0], WORD_HEIGHT, pos[2]]}>
+    <group ref={ref} position={[pos[0], height, pos[2]]}>
       <Text
         rotation={[0, rotY, 0]}
         fontSize={0.09}
@@ -164,8 +188,8 @@ function FloatingWord({
   );
 }
 
-// 터치(모바일) 기기 감지 — 스킨드 메시 GPU 이슈 회피 분기용.
-// 데스크톱은 항상 false → 기존 렌더 경로 100% 불변.
+// 터치(모바일) 기기 감지 — 본체 스킨드 메시 bake 분기, 가장자리 밀기 판별에 쓴다.
+// 데스크톱은 항상 false.
 // (이 씬은 ssr:false로만 마운트되므로 초기값에서 바로 matchMedia를 읽어도 안전)
 function useCoarsePointer(): boolean {
   const [coarse] = useState(
@@ -177,13 +201,127 @@ function useCoarsePointer(): boolean {
   return coarse;
 }
 
-function Mannequin({
+// 상호작용 프록시 — 몸통을 감싸는 투명 캡슐로 hover·클릭 영역을 몸에 밀착
+// (넓은 박스보다 "딱 몸에 닿는" 느낌. 메시 직접 레이캐스트보다 안정적)
+function HitProxy({
+  pos,
+  y,
+  radius,
+  length,
+  onHover,
+  onActivate,
+}: {
+  pos: [number, number, number];
+  y: number;
+  radius: number;
+  length: number;
+  onHover?: (v: boolean) => void;
+  onActivate?: () => void;
+}) {
+  return (
+    <mesh
+      position={[pos[0], y, pos[2]]}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        onHover?.(true);
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        onHover?.(false);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.delta > 6) return; // 드래그(시점 회전)는 클릭으로 치지 않음
+        onActivate?.();
+      }}
+    >
+      {/* 반지름을 여유 있게 — 클릭이 빗나가지 않도록 */}
+      <capsuleGeometry args={[radius, length, 4, 12]} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>
+  );
+}
+
+// 서 있는 자아 — 그림 입간판. 플레이어를 마주 보고, 밑동을 축으로 아주 살짝 흔들린다.
+function Standee({
+  art,
   pos,
   face,
-  word = '',
+  word,
   seed = 0,
-  critic = false,
-  confront = false,
+  onHover,
+  onActivate,
+}: {
+  art: ArtKey;
+  pos: [number, number, number];
+  face: [number, number];
+  word: string;
+  seed?: number;
+  onHover?: (v: boolean) => void;
+  onActivate?: () => void;
+}) {
+  const { tex: src, h, aspect, faceU } = ART[art];
+  const w = h * aspect;
+  const tex = useTexture(src, (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8; // 비스듬히 봐도 선이 뭉개지지 않게
+  });
+  const sway = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    const g = sway.current;
+    // seed로 위상을 흩어 셋이 같은 박자로 흔들리지 않게
+    if (g) g.rotation.z = Math.sin(clock.elapsedTime * 0.7 + seed * 7) * 0.01;
+  });
+
+  const hitR = Math.min(0.5, Math.max(0.34, w * 0.4));
+  // 평면의 앞면(+Z)이 플레이어 발밑을 향한다
+  const rotY = Math.atan2(face[0] - pos[0], face[1] - pos[2]);
+
+  return (
+    <group>
+      <group position={pos} rotation={[0, rotY, 0]}>
+        <group ref={sway}>
+          <mesh position={[(0.5 - faceU) * w, h / 2, 0]} castShadow>
+            <planeGeometry args={[w, h]} />
+            {/* 조명·톤매핑을 타지 않는 원색 그대로. alphaTest라 그림자도 실루엣대로 떨어진다 */}
+            <meshBasicMaterial
+              map={tex}
+              alphaTest={0.5}
+              alphaToCoverage
+              side={THREE.DoubleSide}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      </group>
+      {/* 머리 위에 떠 있는 분류명 — 숨 쉬듯 천천히 오르내린다 (라벨도 클릭 가능) */}
+      <FloatingWord
+        word={word}
+        pos={pos}
+        rotY={rotY}
+        seed={seed}
+        height={h + WORD_GAP}
+        onHover={onHover}
+        onActivate={onActivate}
+      />
+      {/* 그림 폭·키에 맞춘 캡슐 (얼굴 좌표 중심) */}
+      <HitProxy
+        pos={pos}
+        y={h / 2}
+        radius={hitR}
+        length={Math.max(0.1, h - hitR * 2)}
+        onHover={onHover}
+        onActivate={onActivate}
+      />
+    </group>
+  );
+}
+
+// 본체(박도한) — 방에서 유일한 3D 마네킹. 평상시엔 혼자 춤추고, 말을 걸면 인사한다.
+function Dohhan({
+  pos,
+  face,
+  seed = 0,
   onHover,
   onActivate,
   onMeasureHead,
@@ -191,23 +329,16 @@ function Mannequin({
 }: {
   pos: [number, number, number];
   face: [number, number];
-  word?: string;
   seed?: number;
-  critic?: boolean;
-  confront?: boolean;
   onHover?: (v: boolean) => void;
   onActivate?: () => void;
   /** 포즈가 적용된 뒤 실제 머리(월드 Y)를 한 번 재서 알린다 — 포커스 카메라 높이용 */
   onMeasureHead?: (headY: number) => void;
-  /** 본체 전용: 말을 걸었을 때 true — 춤에서 인사로 크로스페이드 */
+  /** 말을 걸었을 때 true — 춤에서 인사로 크로스페이드 */
   greeting?: boolean;
 }) {
-  // 비평가는 앉은 자세(Sitting Idle) 전용 모델을 쓴다
-  const { scene, animations } = useGLTF(
-    critic ? CRITIC_MODEL : MODEL,
-    DRACO_PATH,
-  );
-  // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제 (4개 독립 인스턴스)
+  const { scene, animations } = useGLTF(CRITIC_MODEL, DRACO_PATH);
+  // SkeletonUtils.clone: 스킨드 메시·스켈레톤을 안전하게 복제
   // 정규화용 키는 '지오메트리(바인드 포즈) bbox × 노드 행렬'로 잰다.
   // Box3.setFromObject는 SkinnedMesh에서 본 행렬 기반 특수 바운딩을 타는데,
   // 본이 갱신되기 전엔 붕괴된 값(≈0.28m)이 나와 6배 거인 스케일 버그가 생겼다.
@@ -230,10 +361,10 @@ function Mannequin({
   }, [scene]);
   const { actions, mixer } = useAnimations(animations, cloned);
 
-  // 터치 기기에서만 분기 (데스크톱=false → 아래 두 useEffect 모두 기존과 동일 동작)
+  // 터치 기기에서만 분기 (MOBILE_STATIC_BAKE가 켜져 있을 때만 의미가 있다)
   const coarse = useCoarsePointer();
 
-  // idle 애니메이션 재생 — 데스크톱만 (모바일은 정적 포즈로 구워서 스키닝 회피)
+  // 애니메이션 재생 (모바일 bake 경로일 때만 건너뛴다)
   useEffect(() => {
     if (coarse && MOBILE_STATIC_BAKE) return; // bake 경로일 때만 애니를 건너뛴다
     const list = Object.values(actions).filter(
@@ -241,17 +372,7 @@ function Mannequin({
     ) as THREE.AnimationAction[];
     if (!list.length) return;
 
-    // 흰 자아 셋: 클립 하나를 개체마다 다른 지점에서 재생(동기화 깨기)
-    if (!critic) {
-      const a = list[0];
-      a.reset();
-      a.time = seed * (a.getClip().duration || 1);
-      a.setEffectiveTimeScale(0.9);
-      a.play();
-      return;
-    }
-
-    // 본체: 평상시엔 혼자 춤추고, 말을 걸면 인사 — 인사는 한 번만.
+    // 평상시엔 혼자 춤추고, 말을 걸면 인사 — 인사는 한 번만.
     // 끝난 뒤 완전 정지는 프리즈(렉)처럼 보여서, 춤 클립을 아주 느리게 돌려
     // 숨 쉬는 정도의 미동만 남긴 채 서 있게 한다.
     const idle = list[DOHHAN_IDLE_CLIP] ?? list[0];
@@ -273,7 +394,7 @@ function Mannequin({
       if (greet !== idle) greet.fadeOut(0.35);
       idle.reset().setEffectiveTimeScale(1).fadeIn(0.35).play();
     }
-  }, [actions, mixer, seed, coarse, critic, greeting]);
+  }, [actions, mixer, coarse, greeting]);
 
   // 모바일 전용: 모바일 GPU는 스킨드 메시(뼈 텍스처 스키닝)를 못 그려 마네킹이
   // 안 보인다. → idle 한 포즈를 CPU 스키닝으로 구워(bake) 정적 Mesh로 교체해
@@ -321,7 +442,7 @@ function Mannequin({
     if (action) action.stop();
   }, [cloned, coarse, actions, mixer, seed]);
 
-  // 키 정규화(1.7m) + 그림자 + 비평가는 검은 톤
+  // 키 정규화(1.7m) + 그림자. 재질은 Tripo 실사 텍스처를 그대로 쓴다.
   useEffect(() => {
     // 클론 직후 재둔 바인드 포즈 키 사용 (bake 이후 bbox는 포즈에 따라 달라짐)
     const h = (cloned.userData.bindHeight as number) || 0;
@@ -333,18 +454,9 @@ function Mannequin({
         mesh.castShadow = true;
         mesh.receiveShadow = false;
         mesh.frustumCulled = false;
-        // 본체(박도한)는 Tripo 실사 텍스처를 그대로 쓴다 — 오버라이드하지 않는다.
-        // 흰 자아 셋만 Mixamo 원본 텍스처(살구색)를 무채색으로 덮는다.
-        if (critic) return;
-        const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
-        mat.map = null;
-        mat.color = new THREE.Color('#eaeaea');
-        mat.roughness = 0.4;
-        mat.metalness = 0;
-        mesh.material = mat;
       }
     });
-  }, [cloned, critic]);
+  }, [cloned]);
 
   // 포즈가 적용된 뒤 실제 머리 높이를 한 번만 잰다.
   // 스케일 정규화는 바인드 포즈(T자) 기준이라, 앉은 자세 모델은 정규화 후에도
@@ -379,49 +491,20 @@ function Mannequin({
     }
   });
 
-  // 모델 기본 정면축은 +Z. dir = face - pos (= 플레이어 발밑 방향).
-  // confront=false: 플레이어를 등지고 정면 모서리를 향함(세 자아).
-  // confront=true : 모서리에서 플레이어/자아군을 마주 봄(박도한 본체).
-  const dx = face[0] - pos[0];
-  const dz = face[1] - pos[2];
-  const rotY = confront ? Math.atan2(dx, dz) : Math.atan2(-dx, -dz);
+  // 모델 기본 정면축은 +Z. 플레이어 발밑(face)을 마주 본다.
+  const rotY = Math.atan2(face[0] - pos[0], face[1] - pos[2]);
 
   return (
     <group>
       <primitive object={cloned} position={pos} rotation={[0, rotY, 0]} />
-      {/* 머리 위에 떠 있는 분류명 — 숨 쉬듯 천천히 오르내린다 (라벨도 클릭 가능) */}
-      {word && (
-        <FloatingWord
-          word={word}
-          pos={pos}
-          rotY={rotY}
-          seed={seed}
-          onHover={onHover}
-          onActivate={onActivate}
-        />
-      )}
-      {/* 상호작용 프록시 — 몸통을 감싸는 가는 캡슐로 hover 영역을 몸에 밀착
-          (넓은 박스보다 "딱 마네킹에 닿는" 느낌. 스킨드 메시 직접 레이캐스트보다 안정적) */}
-      <mesh
-        position={[pos[0], 0.84, pos[2]]}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          onHover?.(true);
-        }}
-        onPointerOut={(e) => {
-          e.stopPropagation();
-          onHover?.(false);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (e.delta > 6) return; // 드래그(시점 회전)는 클릭으로 치지 않음
-          onActivate?.();
-        }}
-      >
-        {/* 반지름을 팔까지 여유 있게 — 클릭이 빗나가지 않도록 */}
-        <capsuleGeometry args={[0.34, 1.15, 4, 12]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
+      <HitProxy
+        pos={pos}
+        y={0.84}
+        radius={0.34}
+        length={1.15}
+        onHover={onHover}
+        onActivate={onActivate}
+      />
     </group>
   );
 }
@@ -478,15 +561,17 @@ const SHAKE_MAX = 0.014; // 떨림 진폭(rad) — 아주 잔잔하게
 const SHAKE_FREQ = 10; // 떨림 주파수(rad/s) — 부드러운 사인 스웨이
 const TAP_BOOST = 0.42; // 가장자리를 한 번 톡 칠 때 쌓이는 압력(s) — 3번이면 넘어간다
 
-// 클릭 포커스: 마네킹 얼굴 정면으로 다가가는 카메라 무빙
+// 클릭 포커스: 얼굴 정면으로 다가가는 카메라 무빙
+// (입간판은 ART.focusY, 본체는 실측 머리 높이를 faceY로 쓴다)
 const FOCUS_DIST = 1.15; // 얼굴에서 카메라까지 거리(m)
-const FOCUS_FACE_Y = 1.5; // 얼굴 높이 기본값(m) — 측정 실패 시 폴백(서 있는 자세)
+const FOCUS_FACE_Y = 1.5; // 본체 얼굴 높이 기본값(m) — 측정 실패 시 폴백
 const HEAD_BONE_TO_FACE = 0.08; // 머리뼈(목 위)에서 얼굴 중심까지의 보정(m)
+const FOCUS_SIDE = 0.34; // 넓은 화면에서 얼굴을 왼쪽으로 비켜 세우는 평행이동(m)
 const EYE_ABOVE_FACE = 0.02; // 카메라를 얼굴보다 살짝 위에 둔다(m)
 type FocusTarget = {
   pos: [number, number, number];
   rotY: number;
-  faceY: number; // 이 마네킹의 실제 얼굴 높이 — 앉은 자세도 정확히 마주 본다
+  faceY: number; // 이 자아의 얼굴 높이(m)
 };
 // 프레임마다 재사용하는 임시 벡터 (GC 방지)
 const _pos = new THREE.Vector3();
@@ -612,12 +697,12 @@ function LookControls({ focus }: { focus: FocusTarget | null }) {
     // 포커스 포즈: 얼굴 정면 FOCUS_DIST 앞에서 얼굴을 마주 본다 — f로 두 포즈를 섞는다
     const lf = s.lastFocus;
     if (s.f > 0 && lf) {
-      const dirX = Math.sin(lf.rotY); // 마네킹이 보는 방향 = 얼굴 앞쪽
+      const dirX = Math.sin(lf.rotY); // 자아가 보는 방향 = 얼굴 앞쪽
       const dirZ = Math.cos(lf.rotY);
       // 넓은 화면: 카메라와 시선을 함께 오른쪽으로 평행이동 → 얼굴이 화면
       // 왼쪽으로 비켜나 오른쪽에 작업물 패널 자리가 생긴다. (모바일은 중앙 유지
       // — 패널이 위, 대화창이 아래로 가므로) 오른쪽 벡터 = (dirZ, 0, -dirX).
-      const side = window.innerWidth > 720 ? 0.34 : 0;
+      const side = window.innerWidth > 720 ? FOCUS_SIDE : 0;
       const offX = dirZ * side;
       const offZ = -dirX * side;
       _fPos.set(
@@ -635,6 +720,67 @@ function LookControls({ focus }: { focus: FocusTarget | null }) {
   });
 
   return null;
+}
+
+// ── 집중선(강조선) ─────────────────────────────────────────
+// 입간판을 클릭해 들어가면, 원화 배경의 검은 집중선이 화면 가장자리에서
+// 얼굴 쪽으로 꽂힌다. 시드 고정 난수라 매번 같은 모양.
+// 좌표 단위: 1 = 0.5vmax (svg 한 변 = FOCUS_LINES_R * 1vmax, 중심 = 얼굴의 화면 위치).
+const FOCUS_LINES_R = 220; // 중심에서 쐐기 바깥 끝까지 — 얼굴이 비켜 서도 화면 모서리를 넘는다
+function buildFocusLines(seed: number): string {
+  let a = seed >>> 0;
+  const rnd = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const wedge = (ang: number, half: number, tip: number) => {
+    const p = (r: number, th: number) =>
+      `${(Math.cos(th) * r).toFixed(1)} ${(Math.sin(th) * r).toFixed(1)}`;
+    return `M${p(tip, ang)}L${p(FOCUS_LINES_R, ang - half)}L${p(FOCUS_LINES_R, ang + half)}Z`;
+  };
+  const N = 54;
+  let d = '';
+  for (let i = 0; i < N; i++) {
+    if (rnd() < 0.2) continue; // 군데군데 빈틈
+    const ang = ((i + rnd()) / N) * Math.PI * 2;
+    const half = rnd() < 0.18 ? 0.05 + rnd() * 0.04 : 0.012 + rnd() * 0.03;
+    const tip = 46 + Math.pow(rnd(), 1.4) * 38;
+    d += wedge(ang, half, tip);
+    // 굵은 쐐기 옆에 붙는 가는 붓결 — 원화의 거친 먹선 느낌
+    const slivers = 2 + Math.floor(rnd() * 4);
+    for (let k = 0; k < slivers; k++) {
+      const side = rnd() < 0.5 ? -1 : 1;
+      d += wedge(
+        ang + side * half * (1.1 + rnd() * 1.6),
+        half * (0.12 + rnd() * 0.3),
+        tip + 4 + rnd() * 26,
+      );
+    }
+  }
+  return d;
+}
+const FOCUS_LINES = buildFocusLines(20261120);
+// 넓은 화면에서 얼굴은 화면 중앙보다 왼쪽에 선다(LookControls의 FOCUS_SIDE).
+// 그만큼을 화면 높이 비율로 환산: FOCUS_SIDE / (2 · FOCUS_DIST · tan(fov/2)), fov = 42°
+const FOCUS_LINES_SHIFT_VH =
+  (FOCUS_SIDE / (2 * FOCUS_DIST * Math.tan((42 * Math.PI) / 360))) * 100;
+
+function FocusLines({ show }: { show: boolean }) {
+  const R = FOCUS_LINES_R;
+  return (
+    <div
+      className={'q-lines' + (show ? ' show' : '')}
+      style={{ ['--q-shift' as string]: `${FOCUS_LINES_SHIFT_VH.toFixed(2)}vh` }}
+      aria-hidden
+    >
+      <svg viewBox={`${-R} ${-R} ${R * 2} ${R * 2}`}>
+        <path d={FOCUS_LINES} fill="#000" />
+      </svg>
+    </div>
+  );
 }
 
 // ── 자아 페르소나 대화창 ─────────────────────────────
@@ -813,14 +959,14 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
 export default function QuarrelScene() {
   const t = useStrings();
   const [dpr, setDpr] = useState(1.5);
-  const [hovering, setHovering] = useState(false); // 흰 자아 호버 → 커서 확대
-  const [pressing, setPressing] = useState(false); // 흰 자아 클릭 피드백
+  const [hovering, setHovering] = useState(false); // 자아 호버 → 커서 확대
+  const [pressing, setPressing] = useState(false); // 자아 클릭 피드백
   const [focused, setFocused] = useState<
-    null | (FocusTarget & { word: string })
-  >(null); // 클릭된 자아 — 얼굴 줌 + 대화창
+    null | (FocusTarget & { word: string; lines: boolean })
+  >(null); // 클릭된 자아 — 얼굴 줌 + 대화창 (lines: 입간판이면 집중선)
   const cursorRef = useRef<HTMLDivElement>(null);
   const timers = useRef<{ press?: number }>({});
-  // 마네킹별 실측 머리 높이(월드 Y) — Mannequin이 포즈 적용 후 한 번 보고한다
+  // 본체의 실측 머리 높이(월드 Y) — Dohhan이 포즈 적용 후 한 번 보고한다
   const headY = useRef<Record<string, number>>({});
 
   // 커스텀 커서가 포인터를 따라다니게 (state 리렌더 없이 ref로 직접)
@@ -851,8 +997,8 @@ export default function QuarrelScene() {
     return () => window.removeEventListener('keydown', onKey);
   }, [focused]);
 
-  // 마네킹 클릭(흰 자아·비평가 공통): 커서 수축 피드백 → 얼굴 정면으로 카메라
-  // 접근 + 대화창(흰 자아는 작업물 패널도 함께). 비평가도 잠금 없이 바로 대화한다.
+  // 자아 클릭(입간판·본체 공통): 커서 수축 피드백 → 얼굴 정면으로 카메라
+  // 접근 + 대화창(입간판은 작업물 패널·집중선도 함께). 본체도 잠금 없이 바로 대화한다.
   const handleSelf = (self: (typeof SELVES)[number]) => {
     setPressing(false);
     requestAnimationFrame(() => requestAnimationFrame(() => setPressing(true)));
@@ -860,12 +1006,16 @@ export default function QuarrelScene() {
     timers.current.press = window.setTimeout(() => setPressing(false), 220);
     setHovering(false);
     markVisited(self.word); // 방문 기록(분류별 진행 상태)
-    // 마네킹이 보는 방향(플레이어 쪽) = 얼굴 정면. Mannequin의 rotY와 같은 식.
+    // 자아가 보는 방향(플레이어 쪽) = 얼굴 정면. Standee/Dohhan의 rotY와 같은 식.
     const rotY = Math.atan2(FACE[0] - self.pos[0], FACE[1] - self.pos[2]);
-    // 실측 머리 높이가 있으면 그걸로 — 앉은 자세(박도한)도 얼굴을 정확히 마주 본다
+    // 입간판은 그림마다 정해둔 높이, 본체는 실측 머리 높이(없으면 폴백)
     const measured = headY.current[self.key];
-    const faceY = measured ? measured + HEAD_BONE_TO_FACE : FOCUS_FACE_Y;
-    setFocused({ word: self.word, pos: self.pos, rotY, faceY });
+    const faceY = self.art
+      ? ART[self.art].focusY
+      : measured
+        ? measured + HEAD_BONE_TO_FACE
+        : FOCUS_FACE_Y;
+    setFocused({ word: self.word, pos: self.pos, rotY, faceY, lines: !!self.art });
   };
 
   return (
@@ -901,23 +1051,34 @@ export default function QuarrelScene() {
           {/* HDRI 환경광 — 반사·앰비언트의 사실감 (배경엔 안 깔고 흰 벽 유지) */}
           <Environment files="/hdri/studio.hdr" />
           <Room />
-          {SELVES.map((s) => (
-            <Mannequin
-              key={s.key}
-              pos={s.pos}
-              face={FACE}
-              word={s.hideWord ? '' : s.word}
-              seed={s.seed}
-              critic={s.critic}
-              confront={s.confront}
-              onHover={setHovering}
-              onActivate={() => handleSelf(s)}
-              onMeasureHead={(y) => {
-                headY.current[s.key] = y;
-              }}
-              greeting={focused?.word === s.word}
-            />
-          ))}
+          {/* 서 있는 세 자아 = 그림 입간판 / 본체만 3D 마네킹 */}
+          {SELVES.map((s) =>
+            s.art ? (
+              <Standee
+                key={s.key}
+                art={s.art}
+                pos={s.pos}
+                face={FACE}
+                word={s.word}
+                seed={s.seed}
+                onHover={setHovering}
+                onActivate={() => handleSelf(s)}
+              />
+            ) : (
+              <Dohhan
+                key={s.key}
+                pos={s.pos}
+                face={FACE}
+                seed={s.seed}
+                onHover={setHovering}
+                onActivate={() => handleSelf(s)}
+                onMeasureHead={(y) => {
+                  headY.current[s.key] = y;
+                }}
+                greeting={focused?.word === s.word}
+              />
+            ),
+          )}
           {/* 발밑 접지 그림자 — 실사감의 핵심, shadowMap보다 저렴 */}
           <ContactShadows
             position={[0, 0.01, 0]}
@@ -976,7 +1137,10 @@ export default function QuarrelScene() {
         <p>{t.rotateDevice}</p>
       </div>
 
-      {/* 얼굴 줌 + 대화창 (흰 자아는 작업물 패널도 함께) */}
+      {/* 입간판을 클릭해 들어가면 꽂히는 검은 집중선 (패널·대화창보다 아래 레이어) */}
+      <FocusLines show={!!focused?.lines} />
+
+      {/* 얼굴 줌 + 대화창 (입간판은 작업물 패널도 함께) */}
       {focused && (
         <WorkPanel word={focused.word} onClose={() => setFocused(null)} />
       )}
@@ -1062,6 +1226,38 @@ export default function QuarrelScene() {
           transform: translateX(-50%) translateY(0);
         }
         /* ── 모바일 세로 차단 오버레이 ── */
+        /* ── 집중선 ──────────────────────────────────── */
+        .q-lines {
+          --q-cx: calc(50vw - var(--q-shift)); /* 얼굴의 화면 x — 넓은 화면에선 왼쪽으로 비켜 선다 */
+          position: fixed;
+          inset: 0;
+          /* z-index를 주지 않는다 — 작업물 패널·대화창도 z-index가 없어서,
+             DOM 순서(집중선이 먼저)만으로 패널 아래에 깔리게 한다 */
+          overflow: hidden;
+          pointer-events: none;
+          opacity: 0;
+          transform: scale(1.4);
+          transform-origin: var(--q-cx) 50%;
+          transition: opacity 0.2s ease,
+            transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        .q-lines.show {
+          opacity: 1;
+          transform: scale(1);
+        }
+        .q-lines svg {
+          position: absolute;
+          width: 220vmax;
+          height: 220vmax;
+          left: calc(var(--q-cx) - 110vmax);
+          top: calc(50vh - 110vmax);
+        }
+        @media (max-width: 720px) {
+          .q-lines { --q-cx: 50vw; } /* 모바일은 얼굴이 중앙 */
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .q-lines { transform: none; transition: opacity 0.2s ease; }
+        }
         .q-rotate { display: none; }
         @media (max-width: 900px) and (orientation: portrait) {
           .q-rotate {

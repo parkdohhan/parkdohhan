@@ -1,5 +1,9 @@
 # sketch/quarrel-v0.2
 
+> **이 문서는 과거 기록이다.** quarrel은 이후 `main`으로 올라와 지금은 사이트의 홈(`/`)이다.
+> 아래에 적힌 CSS 3D 마네킹 4개·카메라 각도로 등장하는 비평가·`public/quarrel-demo/`는 더 이상 `main`에 없다.
+> 지금은 그림 입간판 셋과 3D 본체(박도한)로 바뀌었다 — 현재 상태는 [README.md](README.md)를 볼 것.
+>
 > 본 문서는 `main`이 아니라 [`sketch/quarrel-v0.2`](https://github.com/parkdohhan/parkdohhan/tree/sketch/quarrel-v0.2) 브랜치의 상태를 설명한다.
 > `main`의 README는 [README.md](README.md)를 참고할 것.
 
