@@ -80,11 +80,14 @@ npm start
 
   | 분류 | 작업 |
   |---|---|
-  | work | **The Etched Mutation** (web, 2025) — [the-etched-mutation.com](https://www.the-etched-mutation.com) · **Sidekick** (video, 2025) |
-  | commissions | **Dr. Park Factory Promotional Video** (video, 2026) · **Gana Cosmetics** (web, 2026) |
-  | studies | **Byeori Engine** (engine, 2025) · 논문 2편 (2026) — [TEM 시스템](public/papers/tem-system-paper.pdf), [시뮬레이션 독자](public/papers/persona-sim-paper.pdf) |
+  | work | **The Etched Mutation** · **소설** · (숨김) Sidekick |
+  | commissions | **GANA R&D 웹사이트** · **GANA Group 리브랜딩 조사** · **GANA Cosmetics 웹사이트** · **Dr.Park Group 웹사이트** · **Dr.Park 공장·공정 영상** · **제품·시설 사진** |
+  | studies | **이본론** · **실험(모래 상자·구슬)** · 논문 2편 — [TEM 시스템](public/papers/tem-system-paper.pdf), [시뮬레이션 독자](public/papers/persona-sim-paper.pdf) · **책궤** · **Dohhani Thinker** · **Byeori Engine** |
 
-  `medium`은 `web | video | writing | engine`. 영어/한국어 제목·설명은 `localizeProject`가 고른다.
+  내용의 출처는 포트폴리오 문서 v8(2026-11)이다. 숫자·기간은 그 문서에 적힌 것만 옮겼다. 썸네일은 `public/works/`.
+  작업을 더하거나 고치면 [quarrelPersonas.ts](src/data/quarrelPersonas.ts)의 `[네가 가진 작품]`도 같이 고친다 — 자아가 패널에 없는 걸 말하거나, 있는 걸 모르면 안 된다.
+
+  `medium`은 `web | video | writing | engine | research | strategy | photo`. 영어/한국어 제목·설명은 `localizeProject`가 고른다.
 - **[src/data/quarrelPersonas.ts](src/data/quarrelPersonas.ts)** — 네 인물의 페르소나(서버 전용).
 - **[src/data/mapConfig.ts](src/data/mapConfig.ts)** — `/map`의 `MAP_CONFIG`, `MAP_NODES`, `SCAR_CONFIG`, `EASTER_EGGS`, `PARALLAX_LAYERS`.
 
@@ -118,6 +121,7 @@ public/
 ├── draco/                        # Draco 디코더 (자체 호스팅)
 ├── hdri/studio.hdr               # 방 환경광
 ├── papers/                       # 논문 PDF
+├── works/                        # 작업물 썸네일
 ├── video/                        # 작업물 영상
 ├── bg-terrain.png
 └── ByeoriEngine_EN.pdf

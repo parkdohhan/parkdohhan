@@ -26,16 +26,32 @@ export default function AboutPage() {
 
           <div className="space-y-4 text-stone-400 text-sm leading-relaxed text-center">
             <p>
-              Designer, developer, and filmmaker working at the intersection of
-              narrative and interaction.
+              Fiction writer and interactive media artist, based in Seoul.
             </p>
             <p>
-              My work explores recursive structures, memory systems, and the
-              pathology of choice—how we return to what hurts us, and why.
+              I began as a fiction writer and have written stories since 2021.
+              Writing them left me with questions about narrative itself: what a
+              scene is, what its order does, and how a story changes once other
+              people retell it.
             </p>
             <p>
-              Each project is an attempt to make the structure itself carry
-              meaning, not just the content within it.
+              In late 2025 I moved those questions into research: an interactive
+              system in which a memory changes as visitors walk through it, a
+              theory of narrative variants, and experiments on real play records
+              that borrow tools from topology. From that research I have begun
+              to build devices for other people — a way for anyone to leave a
+              memory in the work, and a writing tool for people learning fiction.
+            </p>
+            <p>
+              I earn my living making films, photographs, multilingual websites
+              and brand strategy for manufacturers.
+            </p>
+            <p>
+              How I work: writing fiction, shooting, editing and creative
+              decisions are done by hand. Software is built with AI coding
+              agents — I write the concept, the specification and the acceptance
+              criteria, review the result on screen, and take responsibility for
+              what ships.
             </p>
           </div>
         </motion.div>
@@ -60,7 +76,7 @@ export default function AboutPage() {
               Email
             </a>
             <a
-              href="https://github.com/dohhan"
+              href="https://github.com/parkdohhan"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-stone-500 hover:text-stone-300 transition-colors text-sm"
@@ -93,14 +109,18 @@ export default function AboutPage() {
 
           <div className="flex flex-wrap justify-center gap-3">
             {[
-              'TypeScript',
-              'React',
-              'Next.js',
-              'Three.js',
-              'Framer Motion',
+              'Short fiction',
+              'Screenplay',
+              'Sony FX3 / α7 V',
               'Premiere Pro',
-              'After Effects',
+              'Lightroom',
+              'Photoshop',
               'Figma',
+              'Claude Code',
+              'Next.js',
+              'Astro',
+              'Three.js / R3F',
+              'Supabase',
             ].map((tool) => (
               <span
                 key={tool}
@@ -125,10 +145,12 @@ export default function AboutPage() {
 
           <p className="text-stone-600 text-xs text-center leading-relaxed max-w-md mx-auto">
             This site is built with Next.js, TypeScript, and Tailwind CSS.
-            The 2D map navigation is rendered with DOM elements and Framer Motion.
-            Typography is system fonts. No tracking, no cookies.
+            The home is a 3D room made with three.js and React Three Fiber:
+            three standing pictures that answer in their own voices, and a
+            fourth figure behind you. The older 2D map lives on at /map.
+            No tracking, no cookies.
             <br /><br />
-            The loop count persists across sessions. Each return leaves a scar.
+            The loop count on the map persists across sessions. Each return leaves a scar.
           </p>
         </motion.div>
       </div>
