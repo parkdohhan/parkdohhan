@@ -1060,7 +1060,23 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
   );
 }
 
-export default function QuarrelScene() {
+// Suspense 안의 모든 에셋(HDRI·GLB·텍스처)이 풀려 이 컴포넌트가 마운트되면
+// = 방이 실제로 그려질 준비가 끝났다는 뜻 → 바깥(홈)의 로딩 화면을 걷는다.
+function ReadySignal({ onReady }: { onReady?: () => void }) {
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
+  return null;
+}
+
+// onReady: 방이 다 떴을 때 / onFail: WebGL 컨텍스트를 잃었을 때 (홈의 텍스트 대체 화면용)
+export default function QuarrelScene({
+  onReady,
+  onFail,
+}: {
+  onReady?: () => void;
+  onFail?: () => void;
+} = {}) {
   const t = useStrings();
   const [dpr, setDpr] = useState(1.5);
   const [hovering, setHovering] = useState(false); // 자아 호버 → 커서 확대
@@ -1136,6 +1152,11 @@ export default function QuarrelScene() {
         shadows
         dpr={dpr}
         camera={{ position: CAMERA_POS, fov: 42, near: 0.1, far: 100 }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', () => onFail?.(), {
+            once: true,
+          });
+        }}
         gl={{
           antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping,
@@ -1194,6 +1215,7 @@ export default function QuarrelScene() {
             resolution={1024}
             color="#000000"
           />
+          <ReadySignal onReady={onReady} />
         </Suspense>
 
         {/* 키 라이트 — 부드러운 단일 그림자 (모바일 부담 최소) */}

@@ -1,14 +1,13 @@
-'use client';
+import type { Metadata } from 'next';
+import { HomeScene } from '@/components/home/HomeScene';
 
-import dynamic from 'next/dynamic';
+export const metadata: Metadata = {
+  description:
+    'Portfolio of Dohhan Park (박도한), a Seoul-based fiction writer and interactive media artist: The Etched Mutation, narrative research, films, photography and websites.',
+};
 
-// three.js/HDRI/GLB는 클라이언트 전용 → SSR 비활성화 (/quarrel과 동일)
-const QuarrelScene = dynamic(
-  () => import('@/components/quarrel/QuarrelScene'),
-  { ssr: false },
-);
-
-// 홈 = quarrel 씬. (기존 횡스크롤 맵은 /map 으로 보존)
+// 홈 = 텍스트 홈(서버 HTML로 바로 읽힘) 위에 3D quarrel 방을 덮는다.
+// 방이 못 뜨는 환경에선 텍스트 홈이 그대로 보인다. (기존 횡스크롤 맵은 /map 으로 보존)
 export default function HomePage() {
-  return <QuarrelScene />;
+  return <HomeScene />;
 }
