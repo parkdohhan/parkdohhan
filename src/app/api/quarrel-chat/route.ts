@@ -85,7 +85,10 @@ export async function POST(req: NextRequest) {
               event.type === 'content_block_delta' &&
               event.delta.type === 'text_delta'
             ) {
-              controller.enqueue(encoder.encode(event.delta.text));
+              // 채팅창 한 줄 원칙: 모델이 문단을 나눠도 줄바꿈을 공백으로 편다
+              controller.enqueue(
+                encoder.encode(event.delta.text.replace(/\s*\n+\s*/g, ' ')),
+              );
             }
           }
           controller.close();
