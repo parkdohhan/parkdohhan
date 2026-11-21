@@ -4,8 +4,8 @@ import { ContactBar } from "@/components/layout/ContactBar";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 
 export const metadata: Metadata = {
-  title: "Portfolio | Pathology",
-  description: "A portfolio exploring recursive structures, memory systems, and the pathology of choice.",
+  title: "parkdohhan | Portfolio",
+  description: "Portfolio of Dohhan Park (박도한), a Seoul-based fiction writer and interactive media artist.",
 };
 
 export default function RootLayout({

@@ -1,7 +1,5 @@
 # parkdohhan — quarrel
 
-> *"Pathology is not an event but a repeating structure of choice."*
-
 포트폴리오가 곧 작품의 입구가 되는 사이트.
 홈은 **quarrel** — 자기 자신을 넷으로 쪼개 한 방에 세워둔 1인칭 3D 방이다.
 예전 홈이었던 2D 횡스크롤 맵은 [`/map`](#map--2d-횡스크롤-맵)에 그대로 남아 있다.
@@ -161,8 +159,8 @@ Vercel 프로젝트에 `ANTHROPIC_API_KEY` 환경변수가 있어야 대화가 �
 
 - **abandoned → grasp → loop**
   맵의 처음에는 버려진 휠체어(`wheelchair`, label *abandoned*)가 있고, 끝 무렵에는 그것을 다시 잡는 행위(`return`, label *grasp*)가 있다. 그 뒤에 루프 게이트가 있다. 떠난 자리로 돌아오는 것이 끝이 아니라 다음 시작이다.
-- **명제는 작아지고 자기 자신이 커진다**
-  맵 중앙의 비석(`monolith`)에는 단 한 문장이 새겨져 있다 — *Pathology is not an event but a repeating structure of choice.* 한때 이 비석이 통로의 중심이었지만, 지금은 `scale: 0.2`의 작은 액세서리로 축소되어 Miscellany 옆에 놓여 있다. 그 자리를 차지한 것은 width 440px의 **거대한 About 아치문**(`variant: 'grand'`)이다. *명제가 액세서리가 되고, 자기 자신이 게이트가 된 상태* — 이게 현재 이 사이트의 정직한 자기 진단이다.
+- **자기 자신이 게이트가 된다**
+  맵 중앙에는 width 440px의 **거대한 About 아치문**(`variant: 'grand'`)이 서 있다.
 - **scar**
   루프할 때마다 노이즈와 선이 늘어난다(`SCAR_CONFIG`). 보는 사람이 머문 만큼 화면이 손상된다. "관람은 무해하지 않다"는 게 이 작품의 전제다.
 - **portals as wounds**

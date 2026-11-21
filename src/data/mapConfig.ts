@@ -82,17 +82,6 @@ export const MAP_NODES: MapNode[] = [
     route: '/writing',
   },
 
-  // 4. Small Monolith - decorative accent next to Miscellany
-  // Scaled to 20% of original size. Centered ~x=2000 (former About spot).
-  {
-    id: 'monolith',
-    type: 'monolith',
-    x: 1980,
-    width: 40,
-    scale: 0.2,
-    text: 'Pathology is not an event but a repeating structure of choice.',
-  },
-
   // 5. Grand About Portal - 2.2× former monolith size. Centered ~x=2500.
   {
     id: 'portal-about',

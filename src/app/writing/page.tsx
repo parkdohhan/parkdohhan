@@ -86,14 +86,7 @@ export default function WritingPage() {
           )}
         </div>
 
-        {/* Quote */}
-        <div className="border-t-2 border-stone-700 pt-12 pb-24">
-          <blockquote className="text-center">
-            <p className="text-stone-500 italic text-sm leading-relaxed max-w-md mx-auto">
-              &ldquo;Pathology is not an event but a repeating structure of choice.&rdquo;
-            </p>
-          </blockquote>
-        </div>
+        <div className="pb-24" />
       </div>
     </PageLayout>
   );

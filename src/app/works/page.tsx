@@ -43,7 +43,6 @@ function WorksContent() {
           </h2>
           <p className="text-stone-500 font-medium max-w-xl">
             Projects across interactive experiences, video, and writing.
-            Each explores themes of recursion, memory, and structural pathology.
           </p>
         </div>
 
