@@ -41,8 +41,8 @@ export const projects: Project[] = [
     year: 2025,
     tags: [],
     medium: 'web',
-    description: `Concept, story, memory texts, tool design and direction. Code written by AI coding agents from my specs. December 2025 to now.`,
-    descriptionKo: `개념, 이야기, 기억 텍스트, 도구 설계, 연출. 코드는 내 명세대로 AI 코딩 에이전트가 작성. 2025년 12월부터.`,
+    description: `Interactive web work and research engine. The viewer becomes someone recalling another person's memory: in each scene they read the text and speak to the ghost inside it. Each scene stands as a line sculpture in black space, and there is always one door. Where it leads is decided by the engine, which reads the emotion in what was just said. The more a reading differs from earlier viewers', the further the next scene shifts, so every person's map is different, and at the end the path walked winds into a ball of thread. Concept, story, memory texts, tool design and direction. Since December 2025, public since February 2026. 610 commits, 594 unit tests.`,
+    descriptionKo: `인터랙티브 웹 작품이자 연구 엔진. 관객은 남의 기억을 떠올리는 사람이 되어, 장면마다 글을 읽고 기억 속 유령에게 말을 건넨다. 검은 우주에 장면마다 선 조형물이 하나씩 떠 있고, 문은 늘 하나다. 그 문이 어디로 이어질지는 방금 한 말의 감정을 읽은 엔진이 정한다. 앞사람들과 다르게 읽은 만큼 다음 장면이 비켜 서서 지도는 사람마다 달라지고, 끝에는 걸어온 선이 실뭉치로 감긴다. 개념, 이야기, 기억 텍스트, 도구 설계, 연출. 2025년 12월부터, 2026년 2월 공개. 커밋 610개, 단위 테스트 594개.`,
     links: [
       { label: 'Visit', url: 'https://www.the-etched-mutation.com' },
     ],
