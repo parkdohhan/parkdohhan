@@ -509,6 +509,110 @@ function Dohhan({
   );
 }
 
+// ── 뒤돌면 보이는 벽 그래피티 "DOHHAN" ─────────────────────
+// 본체가 춤추는 모서리(뒷벽 × 좌벽)에 걸쳐 크게 쓴다.
+// 두 벽에 따로 붙이면 모서리에서 글자가 꺾여 보이므로, 플레이어 눈 위치에서
+// 그림을 '투사'(프로젝터)한다 → 뒤돌아본 시점에선 모서리를 넘어 한 장으로 평평하게 읽힌다.
+// 페인트는 거의 검정이라 조명 없이(unlit) 칠해도 벽과 어울린다.
+const GRAFFITI_TEX = '/quarrel/dohhan-graffiti.webp';
+useTexture.preload(GRAFFITI_TEX);
+const GRAFFITI = {
+  corner: [-5.5, -5.5] as const, // 본체 뒤 모서리(x, z)
+  centerY: 1.9, // 글자 중심 높이(m) — 아래쪽은 본체 머리 뒤로 살짝 가려진다
+  lettersW: 5.3, // 모서리 거리에서 본 글자 폭(m) — 키울수록 크게
+  // 그림 안에서 글자(DOHHAN) 영역의 비율 — 그림을 바꾸면 이 값만 맞춘다
+  imgAspect: 1024 / 730,
+  lettersFracW: 670 / 1024,
+  lettersOffX: 38 / 1024, // 글자 중심이 그림 중심보다 오른쪽으로 치우친 정도
+} as const;
+
+function Graffiti() {
+  const tex = useTexture(GRAFFITI_TEX);
+  const material = useMemo(() => {
+    const [cx, cz] = GRAFFITI.corner;
+    const planeW = GRAFFITI.lettersW / GRAFFITI.lettersFracW;
+    const planeH = planeW / GRAFFITI.imgAspect;
+    // 시점에서 본 화면 오른쪽 (뒤돌았을 때) — 글자가 모서리 정중앙에 오도록 보정
+    const right = new THREE.Vector3()
+      .crossVectors(new THREE.Vector3(cx - CAMERA_POS[0], 0, cz - CAMERA_POS[2]).normalize(), UP)
+      .normalize();
+    const aim = new THREE.Vector3(cx, GRAFFITI.centerY, cz).addScaledVector(
+      right,
+      -GRAFFITI.lettersOffX * planeW,
+    );
+    const cam = new THREE.PerspectiveCamera(
+      1,
+      GRAFFITI.imgAspect,
+      0.1,
+      50,
+    );
+    cam.position.set(...CAMERA_POS);
+    const dist = cam.position.distanceTo(aim);
+    cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(planeH / 2 / dist));
+    cam.lookAt(aim);
+    cam.updateMatrixWorld(true);
+    cam.updateProjectionMatrix();
+    const proj = new THREE.Matrix4().multiplyMatrices(
+      cam.projectionMatrix,
+      cam.matrixWorldInverse,
+    );
+    return new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        uMap: { value: tex },
+        uProj: { value: proj },
+        uColor: { value: new THREE.Color('#0e0d0c') },
+      },
+      vertexShader: /* glsl */ `
+        varying vec3 vWorld;
+        void main() {
+          vec4 w = modelMatrix * vec4(position, 1.0);
+          vWorld = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D uMap;
+        uniform mat4 uProj;
+        uniform vec3 uColor;
+        varying vec3 vWorld;
+        void main() {
+          vec4 c = uProj * vec4(vWorld, 1.0);
+          if (c.w <= 0.0) discard;
+          vec2 uv = c.xy / c.w * 0.5 + 0.5;
+          if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
+          float a = texture2D(uMap, uv).a;
+          if (a < 0.01) discard;
+          gl_FragColor = vec4(uColor, a);
+        }
+      `,
+    });
+  }, [tex]);
+
+  // 투사를 받는 면: 모서리에 붙은 두 벽 (벽에서 1cm 띄워 z-fighting 방지)
+  const span = 8.5; // 모서리에서 뻗는 길이(m)
+  return (
+    <group>
+      <mesh
+        position={[-5.5 + span / 2, 2.1, -5.49]}
+        material={material}
+        renderOrder={1}
+      >
+        <planeGeometry args={[span, 4.2]} />
+      </mesh>
+      <mesh
+        position={[-5.49, 2.1, -5.5 + span / 2]}
+        rotation={[0, Math.PI / 2, 0]}
+        material={material}
+        renderOrder={1}
+      >
+        <planeGeometry args={[span, 4.2]} />
+      </mesh>
+    </group>
+  );
+}
+
 function Room() {
   const wall = '#c3b8a7'; // 빛바랜 회갈색(muted taupe) 벽지
   const floor = '#ddd6c9'; // 벽과 어울리게 살짝 따뜻한 회색 바닥
@@ -1051,6 +1155,7 @@ export default function QuarrelScene() {
           {/* HDRI 환경광 — 반사·앰비언트의 사실감 (배경엔 안 깔고 흰 벽 유지) */}
           <Environment files="/hdri/studio.hdr" />
           <Room />
+          <Graffiti />
           {/* 서 있는 세 자아 = 그림 입간판 / 본체만 3D 마네킹 */}
           {SELVES.map((s) =>
             s.art ? (
