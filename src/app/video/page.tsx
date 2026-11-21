@@ -69,6 +69,7 @@ export default function VideoPage() {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`${link.label}: ${video.title}`}
                       className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors"
                     >
                       {link.label}

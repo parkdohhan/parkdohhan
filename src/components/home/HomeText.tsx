@@ -107,6 +107,7 @@ export function HomeText({
                           href={l.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          aria-label={`${l.label}: ${p.title}`}
                           className="underline text-stone-300 hover:text-stone-100"
                         >
                           {l.label}

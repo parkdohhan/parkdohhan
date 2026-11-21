@@ -1045,6 +1045,7 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
                     href={l.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label={`${l.label}: ${p.title}`}
                   >
                     {l.label} ↗
                   </a>
@@ -1149,7 +1150,10 @@ export default function QuarrelScene({
       }}
     >
       <Canvas
-        shadows
+        // 'percentage' = PCFShadowMap. 그냥 shadows(true)면 R3F가 deprecated된
+        // PCFSoftShadowMap을 넣어 three가 Canvas 재설정 때마다 경고를 찍는다
+        // (three는 어차피 PCFShadowMap으로 바꿔 그리므로 화면은 같다).
+        shadows="percentage"
         dpr={dpr}
         camera={{ position: CAMERA_POS, fov: 42, near: 0.1, far: 100 }}
         onCreated={({ gl }) => {

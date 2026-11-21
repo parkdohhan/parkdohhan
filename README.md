@@ -118,11 +118,10 @@ public/
 ├── models/dohhan.glb             # 본체 3D 모델 (Draco 압축)
 ├── draco/                        # Draco 디코더 (자체 호스팅)
 ├── hdri/studio.hdr               # 방 환경광
-├── papers/                       # 논문 PDF
+├── papers/                       # 논문·엔진 문서 PDF (ByeoriEngine_EN.pdf 포함)
 ├── works/                        # 작업물 썸네일
 ├── video/                        # 작업물 영상
-├── bg-terrain.png
-└── ByeoriEngine_EN.pdf
+└── bg-terrain.png
 마네킹/                            # 3D 원본 소스(FBX 등) 보관 — 사이트에서는 쓰지 않는다
 ```
 

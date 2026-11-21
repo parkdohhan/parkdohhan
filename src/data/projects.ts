@@ -252,7 +252,7 @@ export const projects: Project[] = [
     description: `Engine design and documentation. 2025.`,
     descriptionKo: `엔진 설계, 문서화. 2025년.`,
     links: [
-      { label: 'PDF', url: '/ByeoriEngine_EN.pdf' },
+      { label: 'PDF', url: '/papers/ByeoriEngine_EN.pdf' },
     ],
   },
 ];

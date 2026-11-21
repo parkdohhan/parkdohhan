@@ -68,6 +68,7 @@ export default function WritingPage() {
                     <a
                       key={link.label}
                       href={link.url}
+                      aria-label={`${link.label}: ${work.title}`}
                       className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors"
                     >
                       {link.label}

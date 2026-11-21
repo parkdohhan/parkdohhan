@@ -62,6 +62,7 @@ export function ProjectCard({ project: raw, index, onClick }: ProjectCardProps) 
               <a
                 key={link.label}
                 href={link.url}
+                aria-label={`${link.label}: ${project.title}`}
                 onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors"
               >

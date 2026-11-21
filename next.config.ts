@@ -8,6 +8,16 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // PDF는 전부 /papers/ 아래로 모았다. 예전에 공유된 루트 주소가 죽지 않게 넘겨 준다.
+  async redirects() {
+    return [
+      {
+        source: "/ByeoriEngine_EN.pdf",
+        destination: "/papers/ByeoriEngine_EN.pdf",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

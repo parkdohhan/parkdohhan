@@ -156,6 +156,7 @@ export function ProjectModal({ project: raw, onClose }: ProjectModalProps) {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`${link.label}: ${project.title}`}
                       className="inline-flex items-center gap-2 text-sm font-medium text-stone-400 hover:text-stone-200 transition-colors px-4 py-2 border-2 border-stone-600 hover:border-stone-500"
                     >
                       {link.label}
