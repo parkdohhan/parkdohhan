@@ -35,23 +35,22 @@ export default function AboutPage() {
               people retell it.
             </p>
             <p>
-              In late 2025 I moved those questions into research: an interactive
-              system in which a memory changes as visitors walk through it, a
-              theory of narrative variants, and experiments on real play records
-              that borrow tools from topology. From that research I have begun
-              to build devices for other people — a way for anyone to leave a
-              memory in the work, and a writing tool for people learning fiction.
+              In late 2025 I started working on those questions directly. I built
+              an interactive piece where a memory changes as visitors walk through
+              it, wrote a theory of narrative variants, and ran experiments on real
+              play records using tools borrowed from topology. Now I am making
+              things other people can use with it, like a way for anyone to leave
+              a memory in the work, and a writing tool for people learning fiction.
             </p>
             <p>
               I earn my living making films, photographs, multilingual websites
               and brand strategy for manufacturers.
             </p>
             <p>
-              How I work: writing fiction, shooting, editing and creative
-              decisions are done by hand. Software is built with AI coding
-              agents — I write the concept, the specification and the acceptance
-              criteria, review the result on screen, and take responsibility for
-              what ships.
+              I write fiction, shoot, edit and make the creative calls myself.
+              Software is built with AI coding agents. I write the concept and
+              the spec, decide what counts as done, check the result on screen,
+              and I am responsible for whatever goes out.
             </p>
           </div>
         </motion.div>
