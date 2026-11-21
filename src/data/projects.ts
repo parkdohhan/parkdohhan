@@ -76,16 +76,12 @@ Live on its own domain since February 2026. About 575 commits over ten months, 5
 
 Fiction is the oldest part of my practice and the only one made entirely without tools. I have written continuously since 2021 and have studied in a fiction workshop for three years. Everything else here grew out of the habit of writing stories and asking how they hold together.
 
-Five stories reached final form in 2026, about 53,000 Korean characters in all. Working English titles: Territory (four titles and twelve drafts between June and October), Please Replace the Water Pipe Filter, To You (thirty-two versions over two years), The Pit, and Do You Have a Disability?
-
-The texts are not posted here. Three are under submission to literary contests.`,
+Five stories reached final form in 2026, about 53,000 Korean characters in all. Three are under submission to literary contests, so titles and texts are not posted here.`,
     descriptionKo: `단편소설. 2021년 – 현재.
 
 소설은 내 작업에서 가장 오래된 부분이고, 도구 없이 만드는 유일한 것이다. 2021년부터 계속 써 왔고 3년째 소설 합평 수업에서 공부하고 있다. 여기 있는 다른 모든 것은 이야기를 쓰면서 그것이 어떻게 버티는지를 묻던 습관에서 나왔다.
 
-2026년에 다섯 편이 최종고에 이르렀다. 합쳐서 약 5만 3천 자. 「권역」(6월에서 10월 사이 제목 넷, 초고 열둘), 수도관 필터 이야기, 「당신에게」(2년 동안 서른두 판), 구덩이 이야기, 그리고 더 긴 글의 첫 장.
-
-본문은 여기에 올리지 않는다. 세 편이 문학 공모에 투고 중이다.`,
+2026년에 다섯 편이 최종고에 이르렀다. 합쳐서 약 5만 3천 자. 세 편이 문학 공모에 투고 중이라 제목과 본문은 여기에 올리지 않는다.`,
     links: [],
   },
   {
@@ -95,12 +91,19 @@ The texts are not posted here. Three are under submission to literary contests.`
     year: 2025,
     tags: [],
     medium: 'video',
-    description: 'Collaboration with Hyunhwi. Short film. (Apr 2025)',
-    descriptionKo: '현휘와 공동작업. 단편영화. (2025년 4월)',
-    links: [
-      { label: 'Watch', url: 'https://youtu.be/MWgWe-qcbjA' },
-    ],
-    easterEgg: true, // work 목록에서 숨김 — 추후 이스터에그로 등장시킬 예정
+    description: `10-minute AI short film. April 2025.
+
+A team project with Hyunhwi, entered in the CGV AI film contest. I wrote the original story and the screenplay through eight drafts, drew up a 19-page shot script, generated about 300 keyframes and recorded the dialogue. A teammate edited the final cut.
+
+Image: AI-generated keyframe from the shot script.`,
+    descriptionKo: `10분짜리 AI 단편영화. 2025년 4월.
+
+현휘와 팀으로 만들어 CGV AI 영화 공모에 냈다. 원작과 각본(8고), 19쪽짜리 콘티, AI 키프레임 약 300장, 대사 녹음을 맡았고, 최종 편집은 팀원이 했다.
+
+그림: 콘티로 생성한 AI 키프레임.`,
+    // 숨기진 않되 영상 링크는 걸지 않는다 (본인 결정, 2026-11)
+    links: [],
+    media: '/works/sidekick.jpg',
   },
 
   // ── commissions — 의뢰 작업 (GANA Group, 2026) ──────────────
@@ -122,9 +125,8 @@ The earlier site described the company at length and scattered its regulatory in
 이전 사이트는 회사를 길게 설명하고 인허가 정보는 흩어 놓았다. 나는 반대를 제안했다. 설명을 멈추고, 바이어가 직접 확인할 수 있는 번호를 건넨다. 모든 등록 정보는 데이터 파일 하나에 있고, 사이트의 숫자·표·링크는 전부 거기서 생성된다.
 
 6개 언어(영어·스페인어·러시아어·태국어·베트남어·중국어) 6페이지. 등록 33건을 공개하고, 각각 규제기관의 조회 페이지로 연결했다. 가격은 전 언어에서 동시에 뺐다.`,
-    links: [
-      { label: 'Visit', url: 'https://ganarnd.com' },
-    ],
+    // ganarnd.com은 2026년 12월 말까지 비공개 — 링크를 걸지 않는다
+    links: [],
     media: '/works/ganarnd.jpg',
   },
   {
