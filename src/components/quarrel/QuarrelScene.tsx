@@ -893,6 +893,7 @@ type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
 function PersonaChat({ word }: { word: string }) {
   const t = useStrings();
+  const { lang } = useLang();
   const meta = t.chat[word as keyof typeof t.chat] ?? t.chat.work;
   const [msgs, setMsgs] = useState<ChatMsg[]>([
     { role: 'assistant', content: meta.greeting },
@@ -927,7 +928,8 @@ function PersonaChat({ word }: { word: string }) {
       const res = await fetch('/api/quarrel-chat/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ self: word, messages: next }),
+        // lang = 사이트 언어. "hi" 같은 한 낱말로는 언어를 못 가릴 때 서버가 참고한다
+        body: JSON.stringify({ self: word, messages: next, lang }),
       });
       if (!res.ok || !res.body) throw new Error(String(res.status));
       // 스트리밍: 토큰이 도착하는 대로 마지막 말풍선에 흘려 넣는다

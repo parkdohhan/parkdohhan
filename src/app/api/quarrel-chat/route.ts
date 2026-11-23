@@ -30,6 +30,46 @@ function rateLimited(ip: string): boolean {
 
 type InMsg = { role?: unknown; content?: unknown };
 
+// ── 답할 언어 ───────────────────────────────────────────────
+// 페르소나 지시문과 정해둔 대사가 전부 한국어라, 영어로 물어도 그 대사가
+// 한국어 원문 그대로 나갔다. 방문자가 쓴 말을 보고 이번 답의 언어를 지시문
+// 끝에 한 번 더 못 박는다.
+// (속성 이스케이프 \p{..}는 tsconfig target이 ES2017이라 리터럴 대신 생성자로 쓴다)
+const HANGUL = /[\u3131-\u318E\uAC00-\uD7A3]/; // 자모 + 완성형
+const ANY_LETTER = new RegExp('\\p{L}', 'u');
+const NON_LATIN_LETTER = new RegExp('[^\\P{L}\\p{Script=Latin}]', 'u');
+
+// 한 메시지가 말해 주는 언어. null = 판단할 거리가 없음.
+function langSignal(text: string): 'ko' | 'other' | null {
+  if (HANGUL.test(text)) return 'ko';
+  if (!ANY_LETTER.test(text)) return null; // "?", "…", 숫자뿐
+  if (NON_LATIN_LETTER.test(text)) return 'other'; // 일본어·중국어 등
+  // 라틴 글자뿐: "TEM?", "ok" 같은 한 낱말은 한국어 대화에서도 나오니 신호로 치지 않는다
+  const words = text.split(/\s+/).filter((w) => ANY_LETTER.test(w)).length;
+  return words >= 2 ? 'other' : null;
+}
+
+const SHARED_REPLY_RULES = `This includes the fixed lines written in quotes above: say them in that language with the same meaning, length and tone, and never output the Korean original or a Korean version alongside. Korean chat slang (ㅋㅋ, ㅇㅇ, ㄱㄱ) becomes its natural equivalent or is dropped. URLs, handles, e-mail addresses and phone numbers stay exactly as written. Every other rule above still applies.`;
+
+// 가장 최근에 언어가 드러난 방문자 말을 따른다. 끝까지 없으면 사이트 언어.
+function replyDirective(
+  userTexts: string[],
+  siteLang: 'en' | 'ko',
+): string {
+  let signal: 'ko' | 'other' | null = null;
+  for (let i = userTexts.length - 1; i >= 0 && signal === null; i--) {
+    signal = langSignal(userTexts[i]);
+  }
+  if (signal === 'ko') return '';
+  if (signal === 'other') {
+    return `\n[Reply language for this turn]\nThe visitor is not writing in Korean. Reply only in the language the visitor is writing in. ${SHARED_REPLY_RULES}\n`;
+  }
+  if (siteLang === 'en') {
+    return `\n[Reply language for this turn]\nThe visitor is using the site in English and has not written in Korean. Reply only in English. ${SHARED_REPLY_RULES}\n`;
+  }
+  return '';
+}
+
 export async function POST(req: NextRequest) {
   const ip = (req.headers.get('x-forwarded-for') ?? 'local')
     .split(',')[0]
@@ -38,7 +78,7 @@ export async function POST(req: NextRequest) {
     return new Response('rate limited', { status: 429 });
   }
 
-  let body: { self?: unknown; messages?: unknown };
+  let body: { self?: unknown; messages?: unknown; lang?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -68,11 +108,16 @@ export async function POST(req: NextRequest) {
     return new Response('must end with user message', { status: 400 });
   }
 
+  const directive = replyDirective(
+    msgs.filter((m) => m.role === 'user').map((m) => m.content),
+    body.lang === 'ko' ? 'ko' : 'en', // 사이트 기본 언어가 영어
+  );
+
   try {
     const stream = client.messages.stream({
       model: 'claude-haiku-4-5',
       max_tokens: 300, // 페르소나는 2~4문장 — 폭주 방지 캡
-      system: persona.system,
+      system: persona.system + directive,
       messages: msgs,
     });
 
