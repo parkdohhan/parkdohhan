@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { projects, localizeProject, mediumLabels, categoryLabels } from '@/data/projects';
 import { useLang } from '@/i18n/LanguageContext';
+import { TEM_COPY, TEM_ID, TEM_PATH } from '@/data/temDetail';
 
 const CATEGORIES = ['work', 'commissions', 'studies'] as const;
 
@@ -99,6 +100,13 @@ export function HomeText({
                   <p className="mt-2 text-sm leading-relaxed text-stone-400 whitespace-pre-line">
                     {p.description.split('\n\n').slice(0, 2).join('\n\n')}
                   </p>
+                  {p.id === TEM_ID && (
+                    <p className="mt-2 text-xs">
+                      <Link href={TEM_PATH} className="underline text-stone-300 hover:text-stone-100">
+                        {TEM_COPY[lang].explore}
+                      </Link>
+                    </p>
+                  )}
                   {p.links.length > 0 && (
                     <p className="mt-2 text-xs space-x-4">
                       {p.links.map((l) => (

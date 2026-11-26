@@ -65,6 +65,7 @@ npm start
 | `/`, `/quarrel` | quarrel 방 |
 | `/map` | 2D 횡스크롤 맵 (예전 홈) |
 | `/works` | 작업물 그리드 — `?cat=work\|commissions\|studies`, `?filter=interactive` |
+| `/works/the-etched-mutation` | The Etched Mutation 상세 — 방의 work 패널 상세 화면과 같은 내용. 문구·영상 자리는 [src/data/temDetail.ts](src/data/temDetail.ts) |
 | `/video`, `/writing`, `/about` | 맵의 포탈이 여는 페이지 |
 | `/critic` | 예전 비평가 언락 페이지 — 지금은 방에서 연결되지 않는다 |
 | `/film` | legacy — `/video`로 대체됨 |

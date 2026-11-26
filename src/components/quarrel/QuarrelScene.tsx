@@ -13,8 +13,10 @@ import {
 } from '@react-three/drei';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { projects, mediumLabels, localizeProject } from '@/data/projects';
+import { projects, mediumLabels, localizeProject, type Project } from '@/data/projects';
 import { useLang, useStrings } from '@/i18n/LanguageContext';
+import { TemDetail, TemFeaturedCard } from '@/components/works/TemDetail';
+import { TEM_COPY, TEM_ID, TEM_PLAY_URL, type TemSection } from '@/data/temDetail';
 import * as THREE from 'three';
 // drei의 GLTFLoader와 '같은' three-stdlib에서 SkeletonUtils를 가져온다.
 // three/examples/jsm 경로로 가져오면 프로덕션 빌드에서 three 인스턴스가 갈려
@@ -889,9 +891,21 @@ function FocusLines({ show }: { show: boolean }) {
 
 // ── 자아 페르소나 대화창 ─────────────────────────────
 // 인사말·플레이스홀더는 언어 사전(useStrings)에 있다 (페르소나 본체는 서버 전용)
-type ChatMsg = { role: 'user' | 'assistant'; content: string };
+// action: 제안 질문에 답한 뒤 말풍선 아래에 붙는 버튼 (작업물 패널의 해당 자리로 데려간다)
+type ChatAction = { label: string; target: TemSection | 'play' };
+type ChatMsg = { role: 'user' | 'assistant'; content: string; action?: ChatAction };
+type ChatSuggestion = { q: string; action: string; target: TemSection | 'play' };
 
-function PersonaChat({ word }: { word: string }) {
+function PersonaChat({
+  word,
+  suggestions,
+  onAction,
+}: {
+  word: string;
+  /** 대화를 시작하기 전에 보여 줄 제안 질문 (지금은 work만) */
+  suggestions?: ChatSuggestion[];
+  onAction?: (target: TemSection) => void;
+}) {
   const t = useStrings();
   const { lang } = useLang();
   const meta = t.chat[word as keyof typeof t.chat] ?? t.chat.work;
@@ -916,12 +930,13 @@ function PersonaChat({ word }: { word: string }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs]);
 
-  const send = async () => {
-    const text = input.trim();
+  // preset: 제안 질문을 눌렀을 때 — 입력창 대신 그 질문을 보내고, 답 뒤에 버튼을 붙인다
+  const send = async (preset?: ChatSuggestion) => {
+    const text = (preset?.q ?? input).trim();
     if (!text || busy) return;
     const next: ChatMsg[] = [...msgs, { role: 'user', content: text }];
     setMsgs([...next, { role: 'assistant', content: '' }]);
-    setInput('');
+    if (!preset) setInput('');
     setBusy(true);
     try {
       // trailingSlash: true 설정이라 슬래시 필수 (없으면 308 redirect)
@@ -929,7 +944,11 @@ function PersonaChat({ word }: { word: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // lang = 사이트 언어. "hi" 같은 한 낱말로는 언어를 못 가릴 때 서버가 참고한다
-        body: JSON.stringify({ self: word, messages: next, lang }),
+        body: JSON.stringify({
+          self: word,
+          messages: next.map(({ role, content }) => ({ role, content })),
+          lang,
+        }),
       });
       if (!res.ok || !res.body) throw new Error(String(res.status));
       // 스트리밍: 토큰이 도착하는 대로 마지막 말풍선에 흘려 넣는다
@@ -943,6 +962,16 @@ function PersonaChat({ word }: { word: string }) {
         setMsgs([...next, { role: 'assistant', content: acc }]);
       }
       if (!acc.trim()) throw new Error('empty');
+      if (preset) {
+        setMsgs([
+          ...next,
+          {
+            role: 'assistant',
+            content: acc,
+            action: { label: preset.action, target: preset.target },
+          },
+        ]);
+      }
     } catch {
       setMsgs([...next, { role: 'assistant', content: t.chatError }]);
     } finally {
@@ -963,9 +992,44 @@ function PersonaChat({ word }: { word: string }) {
             }
           >
             {m.content}
+            {m.action &&
+              (m.action.target === 'play' ? (
+                <a
+                  className="q-bubble-action"
+                  href={TEM_PLAY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {m.action.label} ↗
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className="q-bubble-action"
+                  onClick={() => onAction?.(m.action!.target as TemSection)}
+                >
+                  {m.action.label} →
+                </button>
+              ))}
           </div>
         ))}
       </div>
+      {/* 대화를 시작하기 전에만 보이는 제안 질문 */}
+      {suggestions && msgs.length === 1 && (
+        <div className="q-chat-chips">
+          {suggestions.map((sg) => (
+            <button
+              type="button"
+              key={sg.q}
+              className="q-chat-chip"
+              onClick={() => send(sg)}
+              disabled={busy}
+            >
+              {sg.q}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="q-chat-row">
         <input
           className="q-chat-input"
@@ -980,7 +1044,7 @@ function PersonaChat({ word }: { word: string }) {
         />
         <button
           className="q-chat-send"
-          onClick={send}
+          onClick={() => send()}
           disabled={busy || !input.trim()}
         >
           {t.chatSend}
@@ -990,13 +1054,96 @@ function PersonaChat({ word }: { word: string }) {
   );
 }
 
+// 작업물 하나 (패널 목록의 기본 항목)
+function WorkItem({ p }: { p: Project }) {
+  return (
+    <article className="q-work">
+      <div className="q-work-meta">
+        {mediumLabels[p.medium]} · {p.year}
+      </div>
+      <h3 className="q-work-title">{p.title}</h3>
+      {p.video && (
+        <video
+          className="q-work-media"
+          src={p.video}
+          controls
+          playsInline
+          preload="metadata"
+        />
+      )}
+      {!p.video && p.media && (
+        <div className="q-work-imgbox">
+          <Image
+            src={p.media}
+            alt=""
+            fill
+            sizes="640px"
+            style={{ objectFit: 'cover' }}
+          />
+        </div>
+      )}
+      <p className="q-work-desc">{p.description}</p>
+      {p.links.length > 0 && (
+        <div className="q-work-links">
+          {p.links.map((l) => (
+            <a
+              key={l.label}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${l.label}: ${p.title}`}
+            >
+              {l.label} ↗
+            </a>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
 // 포커스 시: 얼굴은 왼쪽, 오른쪽에 작업물 패널, 하단에 자아와의 대화창
+// work 패널은 The Etched Mutation을 대표작 카드로 맨 위에 올리고,
+// "작품 살펴보기"를 누르면 패널 안에서 상세 화면으로 바뀐다(캐릭터와 대화창은 그대로).
 function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
   const { lang } = useLang();
   const t = useStrings();
+  const tem = TEM_COPY[lang];
+  const panelRef = useRef<HTMLDivElement>(null);
+  // 상세 화면이 열려 있으면 어느 자리로 갈지(n은 같은 자리를 다시 눌러도 움직이게 하는 값)
+  const [detail, setDetail] = useState<null | { section: TemSection; n: number }>(null);
+  const openDetail = (section: TemSection) =>
+    setDetail((d) => ({ section, n: (d?.n ?? 0) + 1 }));
+
   const list = projects
     .filter((p) => p.category === word && !p.easterEgg)
     .map((p) => localizeProject(p, lang));
+  const featured = word === 'work' && list.some((p) => p.id === TEM_ID);
+  const rest = featured ? list.filter((p) => p.id !== TEM_ID) : list;
+
+  // 목록 ↔ 상세를 오갈 때 패널 스크롤을 맞는 자리로 옮긴다
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const target =
+      detail?.section === 'change' ? el.querySelector('#tem-change') : null;
+    if (target) target.scrollIntoView({ block: 'start' });
+    else el.scrollTop = 0;
+  }, [detail]);
+
+  // 상세 화면에서 ESC는 방으로 나가지 않고 작업 목록으로 한 단계만 돌아간다
+  // (window 캡처 단계에서 먼저 잡아, QuarrelScene의 ESC 처리까지 가지 않게 한다)
+  useEffect(() => {
+    if (!detail) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setDetail(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [detail]);
+
   // 본체(박도한)는 전시할 작업물이 없다 — 작업물 패널 없이 대화창만 띄운다
   if (word === 'dohhan') {
     return (
@@ -1007,58 +1154,65 @@ function WorkPanel({ word, onClose }: { word: string; onClose: () => void }) {
   }
   return (
     <div className="q-focus-layer" onClick={onClose}>
-      <div className="q-side-panel" onClick={(e) => e.stopPropagation()}>
-        <button className="q-panel-close" onClick={onClose} aria-label="close">
-          ×
-        </button>
-        <h2 className="q-panel-word">{word}</h2>
-        {list.map((p) => (
-          <article className="q-work" key={p.id}>
-            <div className="q-work-meta">
-              {mediumLabels[p.medium]} · {p.year}
+      <div
+        className="q-side-panel"
+        ref={panelRef}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 상세 화면에서는 닫기 버튼이 머리줄 안으로 들어간다 */}
+        {!detail && (
+          <button className="q-panel-close" onClick={onClose} aria-label="close">
+            ×
+          </button>
+        )}
+        {detail ? (
+          <>
+            <div className="q-panel-bar">
+              <button
+                type="button"
+                className="q-panel-back"
+                onClick={() => setDetail(null)}
+              >
+                ← {tem.back}
+              </button>
+              <a
+                className="q-panel-play"
+                href={TEM_PLAY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {tem.play} ↗
+              </a>
+              <button className="q-panel-bar-close" onClick={onClose} aria-label="close">
+                ×
+              </button>
             </div>
-            <h3 className="q-work-title">{p.title}</h3>
-            {p.video && (
-              <video
-                className="q-work-media"
-                src={p.video}
-                controls
-                playsInline
-                preload="metadata"
-              />
+            <TemDetail />
+          </>
+        ) : (
+          <>
+            <h2 className="q-panel-word">{word}</h2>
+            {featured && (
+              <>
+                <div className="q-panel-label">{tem.selected}</div>
+                <TemFeaturedCard onExplore={() => openDetail('top')} />
+                {rest.length > 0 && (
+                  <div className="q-panel-label q-panel-label-rule">{tem.others}</div>
+                )}
+              </>
             )}
-            {!p.video && p.media && (
-              <div className="q-work-imgbox">
-                <Image
-                  src={p.media}
-                  alt=""
-                  fill
-                  sizes="640px"
-                  style={{ objectFit: 'cover' }}
-                />
-              </div>
-            )}
-            <p className="q-work-desc">{p.description}</p>
-            {p.links.length > 0 && (
-              <div className="q-work-links">
-                {p.links.map((l) => (
-                  <a
-                    key={l.label}
-                    href={l.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${l.label}: ${p.title}`}
-                  >
-                    {l.label} ↗
-                  </a>
-                ))}
-              </div>
-            )}
-          </article>
-        ))}
-        {list.length === 0 && <p className="q-work-desc">{t.panelEmpty}</p>}
+            {rest.map((p) => (
+              <WorkItem p={p} key={p.id} />
+            ))}
+            {list.length === 0 && <p className="q-work-desc">{t.panelEmpty}</p>}
+          </>
+        )}
       </div>
-      <PersonaChat word={word} />
+      <PersonaChat
+        word={word}
+        suggestions={featured ? tem.ask : undefined}
+        onAction={openDetail}
+      />
     </div>
   );
 }
@@ -1453,7 +1607,8 @@ export default function QuarrelScene({
           color: #2b2a27;
           border-left: 1px solid rgba(43, 42, 39, 0.25);
           box-shadow: -20px 0 60px rgba(0, 0, 0, 0.28);
-          padding: clamp(28px, 3vw, 56px);
+          --qp-pad: clamp(28px, 3vw, 56px);
+          padding: var(--qp-pad);
           animation: q-slide-in 0.55s cubic-bezier(0.22, 0.9, 0.3, 1) 0.4s both;
         }
         @keyframes q-slide-in {
@@ -1510,6 +1665,48 @@ export default function QuarrelScene({
         @keyframes q-blink {
           50% { opacity: 0.2; }
         }
+        .q-bubble-action {
+          display: block;
+          width: fit-content;
+          margin-top: 8px;
+          padding: 5px 10px;
+          border: 1px solid rgba(255, 255, 255, 0.55);
+          border-radius: 4px;
+          background: none;
+          color: #fff;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+          transition: background 0.18s ease, color 0.18s ease;
+        }
+        .q-bubble-action:hover {
+          background: #fff;
+          color: #111;
+        }
+        .q-chat-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .q-chat-chip {
+          padding: 6px 12px;
+          border: 1px solid rgba(43, 42, 39, 0.35);
+          border-radius: 999px;
+          background: rgba(246, 244, 238, 0.96);
+          color: #2b2a27;
+          font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo',
+            'Noto Sans KR', sans-serif;
+          font-size: 13px;
+          cursor: pointer;
+          transition: background 0.18s ease, color 0.18s ease;
+        }
+        .q-chat-chip:hover:not(:disabled) {
+          background: #2b2a27;
+          color: #f4f2ec;
+        }
+        .q-chat-chip:disabled { opacity: 0.5; cursor: default; }
         .q-chat-row {
           display: flex;
           gap: 8px;
@@ -1555,7 +1752,7 @@ export default function QuarrelScene({
             width: auto;
             max-height: 44vh;
             border-left: none;
-            padding: 20px;
+            --qp-pad: 20px;
           }
           .q-chat-dock {
             left: 8px;
@@ -1581,6 +1778,64 @@ export default function QuarrelScene({
           cursor: pointer;
         }
         .q-panel-close:hover { color: #2b2a27; }
+        /* 상세 화면 머리줄 — 스크롤해도 위에 붙어 있다 */
+        .q-panel-bar {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          /* 패널 위쪽 여백까지 덮어, 스크롤되는 내용이 머리줄 위로 비치지 않게 한다 */
+          top: calc(-1 * var(--qp-pad));
+          margin: calc(-1 * var(--qp-pad)) 0 26px;
+          padding: calc(var(--qp-pad) - 4px) 0 10px;
+          background: rgb(246, 244, 238);
+          border-bottom: 1px solid rgba(43, 42, 39, 0.16);
+        }
+        .q-panel-back,
+        .q-panel-play {
+          font: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #2b2a27;
+          background: none;
+          border: none;
+          padding: 6px 0;
+          text-decoration: none;
+          cursor: pointer;
+        }
+        .q-panel-back:hover,
+        .q-panel-play:hover { text-decoration: underline; }
+        .q-panel-back { margin-right: auto; }
+        .q-panel-bar-close {
+          width: 28px;
+          height: 28px;
+          border: none;
+          background: none;
+          color: #6b675e;
+          font-size: 26px;
+          line-height: 1;
+          cursor: pointer;
+        }
+        .q-panel-bar-close:hover { color: #2b2a27; }
+        .q-panel-label {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.28em;
+          text-transform: uppercase;
+          color: #8a8478;
+          margin: 22px 0 14px;
+        }
+        .q-panel-label-rule {
+          border-top: 1px solid rgba(43, 42, 39, 0.16);
+          padding-top: 26px;
+          margin: 0;
+        }
+        /* 라벨 바로 아래 첫 작업은 라벨의 줄을 쓰므로 제 줄을 긋지 않는다 */
+        .q-panel-label + .q-work { border-top: none; padding-top: 14px; }
         .q-panel-word {
           font-family: 'Times New Roman', 'Nanum Myeongjo', serif;
           font-size: clamp(26px, 2.6vw, 42px);
