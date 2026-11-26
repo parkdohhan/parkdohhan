@@ -46,7 +46,7 @@ export const projects: Project[] = [
     links: [
       { label: 'Visit', url: 'https://www.the-etched-mutation.com' },
     ],
-    media: '/works/tem.jpg',
+    media: '/works/tem/poster.jpg',
   },
   {
     id: 'fiction',

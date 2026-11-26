@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     title: 'The Etched Mutation | parkdohhan',
     description: DESCRIPTION,
     url: './',
-    images: [{ url: '/works/tem.jpg', alt: 'The Etched Mutation' }],
+    images: [{ url: '/works/tem/poster.jpg', width: 1600, height: 900, alt: 'The Etched Mutation' }],
   },
 };
 

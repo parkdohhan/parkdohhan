@@ -11,6 +11,7 @@ import {
   TEM_MEDIA,
   TEM_MODE_STATUS,
   TEM_PLAY_URL,
+  TEM_RATIO,
 } from '@/data/temDetail';
 
 // 검은 창 하나. src가 있으면 영상/그림을, 없으면 "준비 중" 틀을 보여 준다.
@@ -21,6 +22,7 @@ function Slot({
   label,
   pending,
   loop = false,
+  ratio,
 }: {
   kind: 'video' | 'image';
   src: string | null;
@@ -28,6 +30,7 @@ function Slot({
   label: string;
   pending: string;
   loop?: boolean; // 소리 없이 반복 재생하는 짧은 영상
+  ratio?: string; // 그림 칸의 가로세로 비 (없으면 16:9). 화면 사진을 통째로 보일 때 쓴다
 }) {
   if (src && kind === 'video') {
     return loop ? (
@@ -55,7 +58,7 @@ function Slot({
   }
   if (src) {
     return (
-      <div className="tem-slot">
+      <div className="tem-slot" style={ratio ? { aspectRatio: ratio } : undefined}>
         <Image src={src} alt={label} fill sizes="900px" style={{ objectFit: 'cover' }} />
       </div>
     );
@@ -136,11 +139,11 @@ export function TemFeaturedCard({ onExplore }: { onExplore: () => void }) {
   );
 }
 
-// 상세 내용: 질문과 영상 → 세 문장 → 전후 비교 → Record/Play/Profile → 질문과 역할
+// 상세 내용: 질문과 영상 → 세 문장 → 화면 → 전후 비교 → Record/Play/Profile → 질문과 역할
 export function TemDetail() {
   const { lang } = useLang();
   const c = TEM_COPY[lang];
-  const steps = ['record', 'intervention', 'after'] as const;
+  const steps = ['record', 'gap', 'intervention', 'after'] as const;
   const modes = ['record', 'play', 'profile'] as const;
   const changeReady = steps.every((s) => TEM_MEDIA.change[s]);
 
@@ -169,6 +172,27 @@ export function TemDetail() {
         ))}
       </section>
 
+      {TEM_MEDIA.shots.length > 0 && (
+        <section className="tem-sec">
+          <h3 className="tem-h">{c.shotsTitle}</h3>
+          <ul className="tem-shots">
+            {TEM_MEDIA.shots.map((shot) => (
+              <li key={shot.id}>
+                <Slot
+                  kind="image"
+                  src={shot.src}
+                  label={c.shots[shot.id]}
+                  pending={c.shotPending}
+                  ratio={TEM_RATIO.shots}
+                />
+                <p className="tem-chain-cap">{c.shots[shot.id]}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="tem-small tem-chain-note">{c.shotsNote}</p>
+        </section>
+      )}
+
       <section className="tem-sec" id="tem-change">
         <h3 className="tem-h">{c.changeTitle}</h3>
         {!changeReady && <p className="tem-status">{c.changePending}</p>}
@@ -183,6 +207,7 @@ export function TemDetail() {
                   src={src}
                   label={step.frame}
                   pending={c.shotPending}
+                  ratio={changeReady ? TEM_RATIO.change : undefined}
                 />
                 {/* 설명 문장은 실제 화면이 들어온 뒤에만 붙는다 */}
                 <p className="tem-chain-cap">
@@ -193,6 +218,7 @@ export function TemDetail() {
             );
           })}
         </ol>
+        {changeReady && c.changeNote && <p className="tem-small tem-chain-note">{c.changeNote}</p>}
       </section>
 
       <section className="tem-sec">
@@ -212,6 +238,7 @@ export function TemDetail() {
                   src={TEM_MEDIA.modes[m]}
                   label={c.modes[m].name}
                   pending={c.shotPending}
+                  ratio={TEM_RATIO.modes}
                 />
               )}
             </li>
@@ -446,6 +473,19 @@ function TemStyles() {
       .tem-chain-cap strong {
         color: var(--tem-ink);
         margin-right: 10px;
+      }
+      .tem-shots {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+      }
+      .tem-chain-note {
+        line-height: 1.6;
+        max-width: 62ch;
+        margin: 20px 0 0;
       }
       .tem-modes {
         list-style: none;

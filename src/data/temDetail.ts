@@ -14,24 +14,57 @@ export const TEM_PLAY_URL = 'https://www.the-etched-mutation.com';
 // 상세 화면 안에서 대화 버튼이 데려갈 수 있는 자리
 export type TemSection = 'top' | 'change';
 
+// "하나의 기억, 서로 다른 읽기"의 네 단계와, 따로 보여 주는 작품 화면
+export type TemChangeStep = 'record' | 'gap' | 'intervention' | 'after';
+export type TemShot = 'prologue' | 'path' | 'backdoor' | 'ending';
+
+// 화면 사진을 잘리지 않게 통째로 보여 주려고 칸을 사진 비율에 맞춘다 (CSS aspect-ratio 값).
+// 사진을 바꾸면 여기도 그 사진의 가로세로 비로 고친다.
+export const TEM_RATIO = {
+  change: '32 / 19', // 1280×760 (자동 브라우저 화면)
+  modes: '16 / 9', // 1600×900 (플레이 녹화의 주요 프레임)
+  shots: '16 / 9',
+} as const;
+
+// 영상과 아래 poster·modes·shots 그림의 원본:
+// Dropbox/기타/TEM/오프닝+세 장면 플레이.mp4 (9분 3초, 2026-11-26 녹화)와 그 "_주요프레임" 폴더.
+// - tem-intro.mp4: 열 구간을 잘라 이은 61.5초 (오프닝 0:02, 서막 0:53, 1번 장면 1:54, 길과 문 2:35,
+//   2번 장면 2:55, 뒷문 4:00, 낱말이 빠짐 4:36, 빈 자리에 내 낱말 6:12, 끝 화면 7:37·8:37). 글이 작은 구간은 확대했다.
+// - tem-teaser.mp4: 네 구간 14초, 소리 없음.
+
 export const TEM_MEDIA: {
   poster: string;
   teaser: string | null;
   intro: string | null;
-  change: { record: string | null; intervention: string | null; after: string | null };
+  change: Record<TemChangeStep, string | null>;
   modes: { record: string | null; play: string | null; profile: string | null };
+  shots: { id: TemShot; src: string }[];
 } = {
   // 영상이 없을 때 대신 보이는 그림이자 영상의 포스터
-  poster: '/works/tem.jpg',
-  // 대표작 카드의 짧은 영상 (소리 없이 반복 재생). 예: '/video/tem-teaser.mp4'
-  teaser: null,
-  // 상세 화면 맨 위의 60초 소개 영상. 예: '/video/tem-intro.mp4'
-  intro: null,
-  // "하나의 기억, 서로 다른 읽기" — 같은 장면이 이어지는 실제 사례 캡처 세 장
-  // 예: '/works/tem/change-record.jpg'
-  change: { record: null, intervention: null, after: null },
-  // Record / Play / Profile 카드의 화면 캡처
-  modes: { record: null, play: null, profile: null },
+  // (주요 프레임 21: 2번 장면, 대문 조형물과 글, 관객의 말과 장면의 대답)
+  poster: '/works/tem/poster.jpg',
+  // 대표작 카드의 짧은 영상 (소리 없이 반복 재생)
+  teaser: '/video/tem-teaser.mp4',
+  // 상세 화면 맨 위의 60초 소개 영상
+  intro: '/video/tem-intro.mp4',
+  // "하나의 기억, 서로 다른 읽기" — 같은 문장이 이어지는 실제 화면 네 장
+  // 지금 것: 장면 세 개짜리 영어 시험용 기억을 자동 브라우저로 세 번(A·B·C) 걸은 화면 (2026-11).
+  // 원본은 TEM 저장소 private/포폴자료-261126/화면/ 의 screen_01~04.
+  change: {
+    record: '/works/tem/change-record.jpg',
+    gap: '/works/tem/change-gap.jpg',
+    intervention: '/works/tem/change-intervention.jpg',
+    after: '/works/tem/change-after.jpg',
+  },
+  // Record / Play / Profile 카드의 화면 캡처 (play = 주요 프레임 38: 3번 장면의 대화 전체)
+  modes: { record: null, play: '/works/tem/mode-play.jpg', profile: null },
+  // 작품 화면 몇 장 (주요 프레임 09, 18, 24, 44). 비워 두면([]) "화면" 구획째 나오지 않는다.
+  shots: [
+    { id: 'prologue', src: '/works/tem/shot-prologue.jpg' },
+    { id: 'path', src: '/works/tem/shot-path.jpg' },
+    { id: 'backdoor', src: '/works/tem/shot-backdoor.jpg' },
+    { id: 'ending', src: '/works/tem/shot-ending.jpg' },
+  ],
 };
 
 // 공개돼 실제로 쓸 수 있으면 'live', 아직이면 'dev' (카드에 "개발 중"이 붙는다)
@@ -56,7 +89,12 @@ export interface TemCopy {
   about: string[];
   changeTitle: string;
   changePending: string;
-  changeSteps: Record<'record' | 'intervention' | 'after', { label: string; frame: string; caption: string }>;
+  changeSteps: Record<TemChangeStep, { label: string; frame: string; caption: string }>;
+  // 화면이 어디서 어떻게 찍혔는지 — 그림이 다 찼을 때만 그 아래에 붙는다
+  changeNote: string;
+  shotsTitle: string;
+  shots: Record<TemShot, string>;
+  shotsNote: string;
   modesTitle: string;
   modes: Record<'record' | 'play' | 'profile', { name: string; body: string }>;
   dev: string;
@@ -98,19 +136,40 @@ export const TEM_COPY: Record<'en' | 'ko', TemCopy> = {
       record: {
         label: 'Record',
         frame: 'The scene as its recorder made it',
-        caption: 'One person left this sentence as a scene.',
+        caption: 'Walk A, a first reading. The line as it was written.',
+      },
+      gap: {
+        label: 'Empty place',
+        frame: 'A word has fallen out',
+        caption:
+          'Walker B goes back to a scene already read, and one word has fallen out. B speaks, as in every scene: “I remember the marmalade.”',
       },
       intervention: {
         label: 'Intervention',
         frame: 'The first viewer steps in',
-        caption: 'The first viewer spoke into this scene.',
+        caption:
+          'The empty place follows B. Held against the word “door” in another scene, it pushes that word out, and a word B said comes in. Amber marks the walker’s own word.',
       },
       after: {
         label: 'After',
         frame: 'The scene the next viewer met',
-        caption: 'The next viewer read that trace in the same scene.',
+        caption:
+          'Walker C, on a first reading, already reads the changed line. Grey italic marks a word left by someone before.',
       },
     },
+    changeNote:
+      'Screens from the running piece, on a three-scene test memory in English. A, B and C were automated browser runs on the live system, not three people.',
+    shotsTitle: 'Screens',
+    shots: {
+      prologue:
+        'The prologue. Falling past a scene’s line sculpture, with words left by someone who walked before.',
+      path: 'Between scenes: one path, one door.',
+      backdoor:
+        'The back door. A scene already walked through shows in the frame: go in, and you can come back.',
+      ending:
+        'The end screen. The version this walk read, with the viewer’s own words in amber, a count of what changed, and the line that was walked.',
+    },
+    shotsNote: 'Frames from a recorded playthrough of the opening and three scenes, November 2026.',
     modesTitle: 'Record / Play / Profile',
     modes: {
       record: {
@@ -169,19 +228,38 @@ export const TEM_COPY: Record<'en' | 'ko', TemCopy> = {
       record: {
         label: '기록',
         frame: '기록자가 만든 장면',
-        caption: '한 사람이 이 문장을 장면으로 남겼다.',
+        caption: '걸음 A의 첫 읽기. 쓰인 그대로의 문장이다.',
+      },
+      gap: {
+        label: '빈 자리',
+        frame: '낱말 하나가 빠진 장면',
+        caption:
+          '걸음 B가 이미 읽은 장면으로 돌아가니 낱말 하나가 빠져 있다. B는 여느 장면에서처럼 말을 한다. “I remember the marmalade.”',
       },
       intervention: {
         label: '개입',
         frame: '첫 번째 관객의 개입',
-        caption: '첫 번째 관객이 이 장면에 말을 남겼다.',
+        caption:
+          '빈 자리는 B를 따라온다. 다른 장면의 낱말 ‘door’에 대자 그 낱말이 빠지고, B가 한 말 속의 낱말이 들어왔다. 호박색은 걷는 이 자신의 낱말이다.',
       },
       after: {
         label: '이후',
         frame: '다음 관객이 만난 장면',
-        caption: '다음 관객이 같은 장면에서 그 흔적을 읽었다.',
+        caption:
+          '걸음 C는 처음 읽는데도 이미 바뀐 문장을 읽는다. 회색 기울임꼴은 앞사람이 두고 간 낱말이다.',
       },
     },
+    changeNote:
+      '실제로 돌아가는 작품의 화면이다. 장면 세 개짜리 영어 시험용 기억에서 찍었고, A·B·C는 사람 셋이 아니라 라이브 시스템에서 돌린 자동 브라우저다.',
+    shotsTitle: '화면',
+    shots: {
+      prologue: '서막. 떨어지며 스쳐 가는 장면의 선 조형물과, 앞서 걸은 사람이 남긴 말.',
+      path: '장면과 장면 사이. 길 하나, 문 하나.',
+      backdoor: '뒷문. 문틀 안에 지나온 장면이 비친다. 들어가면 돌아올 수 있다.',
+      ending:
+        '끝 화면. 이번 걸음이 읽은 판본과 호박색으로 표시된 관객 자신의 말, 무엇이 바뀌었는지의 요약, 그리고 걸어온 선.',
+    },
+    shotsNote: '오프닝과 세 장면의 플레이를 녹화한 영상에서 뽑은 화면이다. 2026년 11월.',
     modesTitle: 'Record / Play / Profile',
     modes: {
       record: {
