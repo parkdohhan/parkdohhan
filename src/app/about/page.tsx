@@ -47,9 +47,9 @@ export default function AboutPage() {
             <p>
               My next step is to evaluate the work with consenting participants
               and establish what its records can reliably tell us about the
-              reading experience. I am also making things other people can use
-              with it, like a way for anyone to leave a memory in the work, and a
-              writing tool for people learning fiction.
+              reading experience. Anyone can now leave a memory of their own in
+              the work, and I am also making a writing tool for people learning
+              fiction.
             </p>
             <p>
               I earn my living making films, photographs, multilingual websites

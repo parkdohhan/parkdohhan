@@ -56,8 +56,9 @@ export const TEM_MEDIA: {
     intervention: '/works/tem/change-intervention.jpg',
     after: '/works/tem/change-after.jpg',
   },
-  // Record / Play / Profile 카드의 화면 캡처 (play = 주요 프레임 38: 3번 장면의 대화 전체)
-  modes: { record: null, play: '/works/tem/mode-play.jpg', profile: null },
+  // Record / Play / Profile 카드의 화면 캡처 (play = 주요 프레임 38: 3번 장면의 대화 전체,
+  // record = TEM 저장소 docs/우주무대_기억만들기_스크린샷/02_감정_조형물.png 를 16:9로 자른 것)
+  modes: { record: '/works/tem/mode-record.jpg', play: '/works/tem/mode-play.jpg', profile: null },
   // 작품 화면 몇 장 (주요 프레임 09, 18, 24, 44). 비워 두면([]) "화면" 구획째 나오지 않는다.
   shots: [
     { id: 'prologue', src: '/works/tem/shot-prologue.jpg' },
@@ -69,9 +70,10 @@ export const TEM_MEDIA: {
 
 // 공개돼 실제로 쓸 수 있으면 'live', 아직이면 'dev' (카드에 "개발 중"이 붙는다)
 export const TEM_MODE_STATUS: Record<'record' | 'play' | 'profile', 'live' | 'dev'> = {
-  record: 'dev',
+  // 2026-11-26: Record와 Profile도 공개됨
+  record: 'live',
   play: 'live',
-  profile: 'dev',
+  profile: 'live',
 };
 
 export interface TemCopy {
@@ -117,7 +119,7 @@ export const TEM_COPY: Record<'en' | 'ko', TemCopy> = {
     others: 'Other works',
     meta: 'Interactive web media art · 2025–',
     summary:
-      'An interactive web work in which each viewer’s reading stays inside a memory and shifts the path of whoever reads it next. A way for people to record their own memories is in development.',
+      'An interactive web work in which each viewer’s reading stays inside a memory and shifts the path of whoever reads it next. Visitors can also record a memory of their own for others to play.',
     flow: ['A memory is recorded', 'Others play it', 'The traces carry on'],
     explore: 'Explore the work',
     play: 'Play',
@@ -209,7 +211,7 @@ export const TEM_COPY: Record<'en' | 'ko', TemCopy> = {
     others: '다른 작업',
     meta: '인터랙티브 웹 미디어아트 · 2025–',
     summary:
-      '관객의 읽기가 기억에 남아 다음 사람의 길을 바꾸는 인터랙티브 웹 작품. 자신의 기억을 직접 기록하는 기능은 개발 중이다.',
+      '관객의 읽기가 기억에 남아 다음 사람의 길을 바꾸는 인터랙티브 웹 작품. 자신의 기억을 직접 기록해 다른 사람이 플레이하게 할 수도 있다.',
     flow: ['기억을 기록한다', '타인이 플레이한다', '흔적이 이어진다'],
     explore: '작품 살펴보기',
     play: '직접 플레이',
