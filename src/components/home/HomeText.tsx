@@ -13,10 +13,11 @@ const CATEGORIES = ['work', 'commissions', 'studies'] as const;
 
 const COPY = {
   en: {
-    role: 'Fiction writer and interactive media artist, based in Seoul.',
+    role: 'I write fiction and build interactive works in which readers change a story, and leave those changes for someone else to encounter.',
     bio: [
-      'I began as a fiction writer and have written stories since 2021. Writing them left me with questions about narrative itself: what a scene is, what its order does, and how a story changes once other people retell it.',
-      'In late 2025 I moved those questions into research: an interactive system in which a memory changes as visitors walk through it, a theory of narrative variants, and experiments on real play records. I earn my living making films, photographs, multilingual websites and brand strategy for manufacturers.',
+      'I am a fiction writer based in Seoul, working with interactive narrative and independent research. I have written stories since 2021, and my projects begin with questions about how stories change when people read and retell them.',
+      'In The Etched Mutation, readers walk through scenes of a memory, contribute words, and encounter traces of earlier readers. Alongside the artwork, I am developing Ibon (異本論), a proposed framework for examining where different readings can, and cannot, fit a shared account. My next step is to evaluate the work with consenting participants and establish what its records can reliably tell us about the reading experience.',
+      'I design the narrative, interactions and tools, and the software is built with AI coding agents. I earn my living making films, photographs, multilingual websites and brand strategy for manufacturers.',
     ],
     sections: { work: 'Work', commissions: 'Commissions', studies: 'Studies' },
     more: 'Pages',
@@ -24,10 +25,11 @@ const COPY = {
     enter: 'Enter the 3D room',
   },
   ko: {
-    role: '서울에서 활동하는 소설가, 인터랙티브 미디어 작가.',
+    role: '소설을 쓰고, 독자가 이야기를 바꾸며 그 변화를 다음 사람이 만나게 하는 인터랙티브 작품을 만든다.',
     bio: [
-      '소설가로 시작해 2021년부터 단편을 써 왔다. 쓰다 보니 서사 자체에 대한 질문이 남았다. 장면이란 무엇인지, 순서는 무슨 일을 하는지, 남이 다시 말하면 이야기는 어떻게 바뀌는지.',
-      '2025년 말부터 그 질문을 연구로 옮겼다. 방문자가 걸어 지나갈수록 기억이 변하는 인터랙티브 시스템, 서사 이본(異本) 이론, 실제 플레이 기록을 다룬 실험. 생계는 제조사를 위한 영상·사진·다국어 웹사이트·브랜드 전략으로 꾸린다.',
+      '서울에서 활동하는 소설가로, 인터랙티브 서사와 독립 연구를 함께 한다. 2021년부터 단편을 써 왔고, 작업은 사람들이 이야기를 읽고 다시 말할 때 무엇이 달라지는가라는 질문에서 시작한다.',
+      'The Etched Mutation에서 독자는 기억의 장면들을 걸으며 말을 남기고, 앞선 독자의 흔적을 만난다. 작품과 함께, 서로 다른 읽기가 어디에서 하나의 설명으로 묶이고 어디에서 묶이지 않는지 살펴보는 연구 틀인 이본론(異本論)을 개발하고 있다. 다음 단계는 동의받은 참여자와 작품을 평가하고, 그 기록이 읽기 경험에 관해 무엇을 믿을 만하게 알려 주는지 확인하는 것이다.',
+      '서사·인터랙션·도구를 설계하고, 소프트웨어는 AI 코딩 에이전트로 만든다. 생계는 제조사를 위한 영상·사진·다국어 웹사이트·브랜드 전략으로 꾸린다.',
     ],
     sections: { work: '작업', commissions: '의뢰', studies: '연구' },
     more: '페이지',

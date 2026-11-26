@@ -26,21 +26,30 @@ export default function AboutPage() {
 
           <div className="space-y-4 text-stone-400 text-sm leading-relaxed text-center">
             <p>
-              Fiction writer and interactive media artist, based in Seoul.
+              I write fiction and build interactive works in which readers change
+              a story, and leave those changes for someone else to encounter.
             </p>
             <p>
-              I began as a fiction writer and have written stories since 2021.
-              Writing them left me with questions about narrative itself: what a
-              scene is, what its order does, and how a story changes once other
-              people retell it.
+              I am a fiction writer based in Seoul, working with interactive
+              narrative and independent research. I have written stories since
+              2021. Writing them left me with questions about narrative itself:
+              what a scene is, what its order does, and how a story changes when
+              people read and retell it.
             </p>
             <p>
-              In late 2025 I started working on those questions directly. I built
-              an interactive piece where a memory changes as visitors walk through
-              it, wrote a theory of narrative variants, and ran experiments on real
-              play records using tools borrowed from topology. Now I am making
-              things other people can use with it, like a way for anyone to leave
-              a memory in the work, and a writing tool for people learning fiction.
+              In late 2025 I started working on those questions directly. In The
+              Etched Mutation, readers walk through scenes of a memory, contribute
+              words, and encounter traces of earlier readers. Alongside the
+              artwork, I am developing Ibon (異本論), a proposed framework for
+              examining where different readings can, and cannot, fit a shared
+              account.
+            </p>
+            <p>
+              My next step is to evaluate the work with consenting participants
+              and establish what its records can reliably tell us about the
+              reading experience. I am also making things other people can use
+              with it, like a way for anyone to leave a memory in the work, and a
+              writing tool for people learning fiction.
             </p>
             <p>
               I earn my living making films, photographs, multilingual websites

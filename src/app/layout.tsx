@@ -6,7 +6,7 @@ import { LanguageProvider } from "@/i18n/LanguageContext";
 const SITE_URL = "https://www.parkdohhan.com";
 const TITLE = "parkdohhan | Portfolio";
 const DESCRIPTION =
-  "Portfolio of Dohhan Park (박도한), a Seoul-based fiction writer and interactive media artist.";
+  "Portfolio of Dohhan Park (박도한), a Seoul-based fiction writer who builds interactive works in which readers change a story and leave those changes for the next reader.";
 // 링크 미리보기 카드용 그림 (1200×630, 홈의 방을 찍은 것)
 const OG_IMAGE = { url: "/og.jpg", width: 1200, height: 630, alt: "parkdohhan portfolio" };
 
